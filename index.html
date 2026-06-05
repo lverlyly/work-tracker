@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="format-detection" content="telephone=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>上班计工</title>
+  <style>
+    :root {
+      --bg: #f5f6fa;
+      --card: #ffffff;
+      --primary: #4f6ef7;
+      --primary-light: #eef0ff;
+      --danger: #f56c6c;
+      --danger-light: #fef0f0;
+      --success: #67c23a;
+      --text: #2c3e50;
+      --text-secondary: #7f8c9b;
+      --text-muted: #b0b8c4;
+      --border: #e8ecf1;
+      --shadow: 0 2px 12px rgba(0,0,0,0.06);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+      background: #f5f6fa; color: #2c3e50;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .container { max-width: 420px; margin:0 auto; padding: 20px 16px 60px; }
+
+    /* Header */
+    .header { text-align:center; padding:16px 0 8px; }
+    .header .date { font-size:14px; color:#7f8c9b; margin-bottom:4px; }
+    .header .weekday { font-size:28px; font-weight:700; letter-spacing:1px; }
+
+    /* 今日工时卡片 */
+    .today-card {
+      background: #4f6ef7; color:#fff; border-radius:16px;
+      padding:28px 24px; text-align:center; margin-bottom:20px;
+      box-shadow: 0 8px 24px rgba(79,110,247,0.25);
+    }
+    .today-card .label { font-size:13px; opacity:.85; margin-bottom:8px; letter-spacing:2px; }
+    .today-card .hours { font-size:56px; font-weight:700; line-height:1; letter-spacing:-2px; }
+    .today-card .hours small { font-size:24px; font-weight:400; letter-spacing:0; }
+    .today-card .times { margin-top:12px; font-size:14px; opacity:.8; display:flex; justify-content:center; gap:24px; }
+    .today-card .times span { display:flex; flex-direction:column; gap:2px; }
+    .today-card .times .time-val { font-size:20px; font-weight:600; opacity:1; }
+
+    /* 打卡按钮 */
+    .btn-area { display:flex; gap:12px; margin-bottom:20px; }
+    .btn { flex:1; border:none; border-radius:10px; padding:18px; font-size:17px; font-weight:600; cursor:pointer; letter-spacing:1px; -webkit-tap-highlight-color:transparent; }
+    .btn:active { opacity:.8; }
+    .btn-checkin { background:#4f6ef7; color:#fff; }
+    .btn-checkout { background:#fff; color:#f56c6c; border:1.5px solid #f56c6c; }
+    .btn:disabled { opacity:.45; pointer-events:none; }
+
+    /* 提示条 */
+    .tip-bar {
+      background: #eef0ff; border-radius: 10px;
+      padding: 10px 14px; margin-bottom: 20px; font-size: 12px; color: #4f6ef7;
+      text-align: center; letter-spacing: .5px;
+    }
+
+    /* ========== 月历 ========== */
+    .calendar {
+      background:#fff; border-radius:16px;
+      margin-bottom:20px; overflow:hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .cal-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px 10px;
+    }
+    .cal-header .cal-month { font-size:16px; font-weight:700; }
+    .cal-header .cal-nav { display:flex; gap:4px; }
+    .cal-header .cal-nav button {
+      background:#f5f6fa; border:none; border-radius:8px; width:36px; height:36px;
+      font-size:16px; cursor:pointer; color:#2c3e50; text-align:center; line-height:36px;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .cal-header .cal-nav button:active { background:#e8ecf1; }
+    .cal-weekdays {
+      display:grid; grid-template-columns:repeat(7,1fr); text-align:center;
+      font-size:11px; color:#b0b8c4; padding:4px 12px 8px;
+    }
+    .cal-grid {
+      display:grid; grid-template-columns:repeat(7,1fr); gap:3px; padding:0 8px 12px;
+    }
+    .cal-cell {
+      position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      border-radius:10px; font-size:14px; cursor:pointer; font-weight:500;
+      padding: 6px 0; -webkit-tap-highlight-color:transparent;
+      min-height: 40px;
+    }
+    .cal-cell:active { background:#eef0ff; }
+    .cal-cell.today { font-weight:700; color:#4f6ef7; }
+    .cal-cell.today::after { content:''; position:absolute; bottom:2px; width:5px; height:5px; border-radius:50%; background:#4f6ef7; }
+    .cal-cell.other-month { color:#b0b8c4; pointer-events:none; }
+    .cal-cell .dot { font-size:10px; margin-top:1px; font-weight:700; }
+    .cal-cell .dot.has-record { color:#67c23a; }
+    .cal-summary {
+      display:flex; justify-content:space-around; padding:10px 16px 14px;
+      border-top:1px solid #e8ecf1; font-size:12px;
+    }
+    .cal-summary span { text-align:center; }
+    .cal-summary .val { font-size:18px; font-weight:700; color:#4f6ef7; display:block; }
+
+    /* ========== 详情列表 ========== */
+    .detail-list {
+      background:#fff; border-radius:16px; overflow:hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .detail-list .section-title {
+      font-size:13px; color:#7f8c9b; padding:16px 16px 10px; letter-spacing:1px;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .detail-list .section-title .month-total { font-size:13px; color:#4f6ef7; font-weight:600; }
+    .detail-items { list-style:none; max-height:360px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .detail-item {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 16px; border-bottom:1px solid #e8ecf1; font-size:14px;
+    }
+    .detail-item:last-child { border-bottom:none; }
+    .detail-item .di-date { display:flex; flex-direction:column; gap:2px; }
+    .detail-item .di-date .day { font-weight:600; }
+    .detail-item .di-date .range { font-size:12px; color:#7f8c9b; }
+    .detail-item .di-hours { font-size:18px; font-weight:700; color:#4f6ef7; min-width:50px; text-align:right; }
+    .detail-item .di-hours small { font-size:12px; font-weight:400; }
+    .detail-item .di-actions { display:flex; gap:4px; margin-left:8px; }
+    .detail-item .di-actions button {
+      background:none; border:none; font-size:16px; cursor:pointer; padding:4px 6px; border-radius:6px;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .detail-item .di-actions .edit-btn { color:#4f6ef7; }
+    .detail-item .di-actions .edit-btn:active { background:#eef0ff; }
+    .detail-item .di-actions .del-btn { color:#ccc; }
+    .detail-item .di-actions .del-btn:active { color:#f56c6c; background:#fef0f0; }
+
+    .empty-state { text-align:center; padding:40px 20px; color:#7f8c9b; font-size:14px; }
+    .empty-state .icon { font-size:40px; margin-bottom:10px; opacity:.5; }
+
+    /* ========== 编辑弹窗 ========== */
+    .modal-overlay {
+      position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.4);
+      z-index:1000; display:flex; align-items:flex-end; justify-content:center;
+      opacity:0; pointer-events:none;
+      -webkit-transition:opacity .25s; transition:opacity .25s;
+    }
+    .modal-overlay.show { opacity:1; pointer-events:auto; }
+    .modal {
+      background:#fff; border-radius:16px 16px 0 0;
+      width:100%; max-width:420px; padding:24px 20px 32px;
+      -webkit-transform:translateY(20px); transform:translateY(20px);
+      -webkit-transition:transform .25s; transition:transform .25s;
+    }
+    .modal-overlay.show .modal { -webkit-transform:translateY(0); transform:translateY(0); }
+    .modal h3 { font-size:17px; margin-bottom:6px; text-align:center; }
+    .modal .modal-date { text-align:center; font-size:13px; color:#7f8c9b; margin-bottom:20px; }
+    .modal .form-row { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+    .modal .form-row label { width:42px; font-size:14px; font-weight:500; flex-shrink:0; }
+    .modal .form-row input {
+      flex:1; border:1.5px solid #e8ecf1; border-radius:8px; padding:12px; font-size:16px;
+      font-family:inherit; text-align:center; background:#fff; color:#2c3e50;
+      -webkit-appearance:none; appearance:none; outline:none;
+    }
+    .modal .form-row input:focus { border-color:#4f6ef7; }
+    .modal .form-actions { display:flex; gap:10px; margin-top:20px; }
+    .modal .form-actions button { flex:1; border:none; border-radius:10px; padding:14px; font-size:15px; font-weight:600; cursor:pointer; }
+    .modal .btn-save { background:#4f6ef7; color:#fff; }
+    .modal .btn-cancel { background:#f5f6fa; color:#7f8c9b; }
+    .modal .btn-save:active { opacity:.8; }
+    .modal .btn-cancel:active { background:#e8ecf1; }
+    .modal .btn-delete { background:none; color:#f56c6c; font-size:13px; padding:10px; margin-top:6px; width:100%; border:none; cursor:pointer; }
+    .modal .btn-delete:active { background:#fef0f0; border-radius:8px; }
+
+    /* Toast */
+    .toast { position:fixed; top:20px; left:50%; -webkit-transform:translateX(-50%); transform:translateX(-50%); background:#333; color:#fff; padding:10px 24px; border-radius:20px; font-size:14px; z-index:2000; opacity:0; -webkit-transition:opacity .3s; transition:opacity .3s; pointer-events:none; }
+    .toast.show { opacity:1; }
+
+    /* 分享 */
+    .share-bar { text-align:center; margin-top:20px; }
+    .share-btn { background:#fff; border:1.5px solid #e8ecf1; border-radius:20px; padding:10px 24px; font-size:14px; color:#7f8c9b; cursor:pointer; font-family:inherit; }
+    .share-btn:active { background:#f5f6fa; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="date" id="dateStr"></div>
+      <div class="weekday" id="weekdayStr"></div>
+    </div>
+
+    <div class="today-card">
+      <div class="label">今 日 工 时</div>
+      <div class="hours" id="todayHours">0<small>h</small></div>
+      <div class="times">
+        <span>上班 <span class="time-val" id="timeIn">--:--</span></span>
+        <span>下班 <span class="time-val" id="timeOut">--:--</span></span>
+      </div>
+    </div>
+
+    <div class="btn-area">
+      <button class="btn btn-checkin" id="btnCheckIn" onclick="punchIn()">上班打卡</button>
+      <button class="btn btn-checkout" id="btnCheckOut" onclick="punchOut()" disabled>下班打卡</button>
+    </div>
+
+    <div class="tip-bar">点月历上的日期可直接补录 / 修改记录</div>
+
+    <div class="calendar">
+      <div class="cal-header">
+        <span class="cal-month" id="calMonth"></span>
+        <div class="cal-nav">
+          <button onclick="changeMonth(-1)">&lt;</button>
+          <button onclick="changeMonth(1)">&gt;</button>
+        </div>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-summary">
+        <span>出勤<span class="val" id="calWorkDays">0</span>天</span>
+        <span>总工时<span class="val" id="calTotalHours">0h</span></span>
+        <span>日均<span class="val" id="calAvgHours">0h</span></span>
+      </div>
+    </div>
+
+    <div class="detail-list">
+      <div class="section-title">
+        <span>记录详情</span>
+        <span class="month-total" id="listMonthTotal">本月合计 0h</span>
+      </div>
+      <ul class="detail-items" id="detailItems">
+        <li class="empty-state"><div class="icon">-</div><div>暂无记录，开始打卡吧</div></li>
+      </ul>
+    </div>
+
+    <div class="share-bar">
+      <button class="share-btn" onclick="sharePage()">分享给同事</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <h3 id="modalTitle">补录打卡</h3>
+      <div class="modal-date" id="modalDate"></div>
+      <div class="form-row">
+        <label>上班</label><input type="time" id="editIn" step="60">
+      </div>
+      <div class="form-row">
+        <label>下班</label><input type="time" id="editOut" step="60">
+      </div>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+        <button class="btn-save" onclick="saveEdit()">保存</button>
+      </div>
+      <button class="btn-delete" id="modalDeleteBtn" onclick="deleteFromModal()" style="display:none;">删除此记录</button>
+    </div>
+  </div>
+
+  <script>
+    var STORAGE_KEY = 'work_tracker_data';
+    function loadData() { try { var r=localStorage.getItem(STORAGE_KEY); return r?JSON.parse(r):{}; } catch(e){ return{}; } }
+    function saveData(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+    function todayKey() { var d=new Date(); return fmtDate(d); }
+    function fmtDate(d) {
+      var mm = d.getMonth()+1; var dd = d.getDate();
+      return d.getFullYear()+'-'+(mm<10?'0':'')+mm+'-'+(dd<10?'0':'')+dd;
+    }
+    function pad2(n) { return n<10 ? '0'+n : ''+n; }
+    function calcHours(a,b) {
+      if(!a||!b) return 0;
+      var ap=a.split(':'), bp=b.split(':');
+      var ah=parseInt(ap[0],10), am=parseInt(ap[1],10);
+      var bh=parseInt(bp[0],10), bm=parseInt(bp[1],10);
+      var m=(bh*60+bm)-(ah*60+am); if(m<0) m+=1440;
+      return Math.round(m/6)/10;
+    }
+    function nowTimeStr() { var d=new Date(); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+    function weekDayLabel(d) { return ['日','一','二','三','四','五','六'][d.getDay()]; }
+
+    var toastTimer;
+    function showToast(msg) {
+      var e=document.getElementById('toast'); e.textContent=msg;
+      e.classList.add('show'); clearTimeout(toastTimer);
+      toastTimer=setTimeout(function(){ e.classList.remove('show'); },1800);
+    }
+
+    function punchIn() {
+      var k=todayKey(), data=loadData();
+      if(data[k]&&data[k].in) return showToast('今天已经打过上班卡了');
+      if(!data[k]) data[k]={}; data[k].in=nowTimeStr(); saveData(data); render(); showToast('上班打卡成功');
+    }
+    function punchOut() {
+      var k=todayKey(), data=loadData();
+      if(!data[k]||!data[k].in) return showToast('请先打上班卡');
+      if(data[k].out) return showToast('今天已经打过下班卡了');
+      data[k].out=nowTimeStr(); saveData(data); render(); showToast('下班打卡成功，辛苦了！');
+    }
+
+    function deleteRecord(key) {
+      if(!confirm('确定删除这条记录吗？')) return;
+      var data=loadData(); delete data[key]; saveData(data); render(); showToast('已删除');
+    }
+
+    var editingKey = null;
+    function openEditModal(key) {
+      editingKey = key;
+      var data = loadData();
+      var d = data[key] || {};
+      var hasRecord = !!(d.in && d.out);
+
+      document.getElementById('modalTitle').textContent = hasRecord ? '修改打卡记录' : '补录打卡';
+      document.getElementById('modalDate').textContent = formatDateDisplay(key);
+      document.getElementById('editIn').value = d.in || '09:00';
+      document.getElementById('editOut').value = d.out || '18:00';
+      document.getElementById('modalDeleteBtn').style.display = hasRecord ? 'block' : 'none';
+      document.getElementById('editModal').classList.add('show');
+    }
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('show');
+      editingKey = null;
+    }
+    function saveEdit() {
+      var inVal = document.getElementById('editIn').value;
+      var outVal = document.getElementById('editOut').value;
+      if (!inVal || !outVal) return showToast('请填写上下班时间');
+      if (inVal >= outVal) return showToast('下班时间必须晚于上班时间');
+      var data = loadData();
+      if (!data[editingKey]) data[editingKey] = {};
+      data[editingKey].in = inVal;
+      data[editingKey].out = outVal;
+      saveData(data); closeEditModal(); render(); showToast('记录已保存');
+    }
+    function deleteFromModal() {
+      if (!editingKey) return;
+      if (!confirm('确定删除这条记录吗？')) return;
+      var data = loadData(); delete data[editingKey];
+      saveData(data); closeEditModal(); render(); showToast('已删除');
+    }
+    function formatDateDisplay(key) {
+      var parts = key.split('-');
+      var y=parseInt(parts[0],10), m=parseInt(parts[1],10), d=parseInt(parts[2],10);
+      var date = new Date(y, m-1, d);
+      return m+'月'+d+'日 星期'+weekDayLabel(date);
+    }
+    document.getElementById('editModal').addEventListener('click', function(e) {
+      if (e.target === this) closeEditModal();
+    });
+
+    var calYear, calMonth;
+    (function(){ var n=new Date(); calYear=n.getFullYear(); calMonth=n.getMonth()+1; })();
+    function changeMonth(delta) {
+      calMonth += delta;
+      if (calMonth > 12) { calMonth = 1; calYear++; }
+      if (calMonth < 1) { calMonth = 12; calYear--; }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      document.getElementById('calMonth').textContent = calYear+'年'+calMonth+'月';
+      var data = loadData();
+      var prefix = calYear+'-'+pad2(calMonth)+'-';
+      var today = todayKey();
+      var firstDay = new Date(calYear, calMonth-1, 1);
+      var lastDay = new Date(calYear, calMonth, 0);
+      var startDow = firstDay.getDay();
+      var cells = [];
+      for (var i = 0; i < startDow; i++) { cells.push({day:'',cls:'other-month'}); }
+      var workDays = 0, totalH = 0;
+      for (var d = 1; d <= lastDay.getDate(); d++) {
+        var key = prefix + pad2(d);
+        var rec = data[key] || {};
+        var h = calcHours(rec.in, rec.out);
+        if (h > 0) { workDays++; totalH += h; }
+        var cls = (key === today) ? ' today' : '';
+        var dotHtml = h > 0 ? '<span class="dot has-record">'+h+'h</span>' : '';
+        cells.push({day:d, cls:cls, html:dotHtml, key:key});
+      }
+      var html = '';
+      for (var i = 0; i < cells.length; i++) {
+        var c = cells[i];
+        if (!c.day) { html += '<div class="cal-cell other-month"></div>'; continue; }
+        html += '<div class="cal-cell'+c.cls+'" onclick="openEditModal(\''+c.key+'\')">'+c.day+(c.html||'')+'</div>';
+      }
+      document.getElementById('calGrid').innerHTML = html;
+      var avg = workDays > 0 ? Math.round(totalH / workDays * 10) / 10 : 0;
+      document.getElementById('calWorkDays').textContent = workDays;
+      document.getElementById('calTotalHours').textContent = (Math.round(totalH * 10) / 10)+'h';
+      document.getElementById('calAvgHours').textContent = avg+'h';
+    }
+
+    function render() {
+      var key = todayKey(), data = loadData(), today = data[key] || {}, now = new Date();
+      document.getElementById('dateStr').textContent = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+      document.getElementById('weekdayStr').textContent = '星期'+weekDayLabel(now);
+      var h = calcHours(today.in, today.out);
+      document.getElementById('todayHours').innerHTML = h>0 ? h+'<small>h</small>' : '0<small>h</small>';
+      document.getElementById('timeIn').textContent = today.in || '--:--';
+      document.getElementById('timeOut').textContent = today.out || '--:--';
+      document.getElementById('btnCheckIn').disabled = !!today.in;
+      document.getElementById('btnCheckOut').disabled = !today.in || !!today.out;
+      renderCalendar();
+
+      var prefix = calYear+'-'+pad2(calMonth)+'-';
+      var allKeys = [];
+      for (var k in data) { if (data.hasOwnProperty(k) && k.indexOf(prefix)===0) allKeys.push(k); }
+      allKeys.sort().reverse();
+      var monthTotal = 0;
+      var listEl = document.getElementById('detailItems');
+      if (allKeys.length === 0) {
+        listEl.innerHTML = '<li class="empty-state"><div class="icon">-</div><div>本月暂无记录</div></li>';
+      } else {
+        var liHtml = '';
+        for (var i = 0; i < allKeys.length; i++) {
+          var k = allKeys[i];
+          var d = data[k];
+          var hh = calcHours(d.in, d.out);
+          monthTotal += hh;
+          var parts = k.split('-');
+          var m = parseInt(parts[1],10), day = parseInt(parts[2],10);
+          var dt = new Date(parseInt(parts[0],10), m-1, day);
+          liHtml += '<li class="detail-item" id="detail-'+k+'">'
+            +'<div class="di-date"><span class="day">'+m+'月'+day+'日 周'+weekDayLabel(dt)+'</span>'
+            +'<span class="range">'+(d.in||'--')+' ~ '+(d.out||'--')+'</span></div>'
+            +'<span class="di-hours">'+hh+'<small>h</small></span>'
+            +'<div class="di-actions">'
+            +'<button class="edit-btn" onclick="openEditModal(\''+k+'\')">改</button>'
+            +'<button class="del-btn" onclick="deleteRecord(\''+k+'\')">×</button>'
+            +'</div></li>';
+        }
+        listEl.innerHTML = liHtml;
+      }
+      document.getElementById('listMonthTotal').textContent = '本月合计 '+(Math.round(monthTotal*10)/10)+'h';
+    }
+
+    function sharePage() {
+      var key=todayKey(), data=loadData(), today=data[key]||{}, h=calcHours(today.in,today.out);
+      var t='【上班计工】'; t+=h>0?'今日工时 '+h+'h，'+today.in+'~'+today.out:'点击查看我的工时记录';
+      if(navigator.share){ navigator.share({title:'上班计工',text:t,url:location.href}).catch(function(){}); }
+      else if(navigator.clipboard){ navigator.clipboard.writeText(t+'\n'+location.href).then(function(){showToast('已复制分享链接');}); }
+      else showToast('长按页面链接分享给同事');
+    }
+
+    render();
+    setInterval(render, 30000);
+  </script>
+</body>
+</html>
