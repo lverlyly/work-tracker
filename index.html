@@ -537,25 +537,38 @@
       document.getElementById('importModal').classList.remove('show');
     }
     function importData() {
-      var text = document.getElementById('importText').value.trim();
-      if (!text) return showToast('请粘贴导出的数据');
+      var text = document.getElementById('importText').value;
+      if (!text || !text.trim()) return showToast('请粘贴导出的数据');
+      // 清理：去掉所有不可见控制字符、零宽字符，只保留可见文本
+      text = text.replace(/[\u200B-\u200D\uFEFF\x00-\x1F\x7F]/g, '').trim();
       try {
-        var json;
-        // 新格式 WT2: 直接是 JSON
+        var json = null;
+        // WT2: 直接 JSON
         if (text.indexOf('WT2:') === 0) {
-          json = text.substring(4);
+          json = text.substring(4).trim();
         }
-        // 旧格式 WT1: base64 编码
+        // WT1: base64
         else if (text.indexOf('WT1:') === 0) {
-          var cleaned = text.substring(4).replace(/\s/g, '');
+          var cleaned = text.substring(4).replace(/\s+/g, '');
           json = decodeURIComponent(escape(atob(cleaned)));
         }
-        // 兼容直接粘贴 JSON
-        else {
+        // 直接粘贴的 JSON（可能以 { 开头）
+        else if (text.indexOf('{') === 0) {
           json = text;
         }
+        // 尝试找 JSON 起始位置
+        else {
+          var idx = text.indexOf('{');
+          if (idx >= 0) {
+            json = text.substring(idx);
+          }
+        }
+
+        if (!json) throw new Error('未找到有效数据，请确认粘贴了完整的导出文本');
+
         var imported = JSON.parse(json);
-        if (typeof imported !== 'object' || imported === null) throw new Error('格式错误');
+        if (typeof imported !== 'object' || imported === null) throw new Error('数据格式不正确');
+
         var existing = loadData();
         var count = 0;
         for (var k in imported) {
@@ -564,13 +577,14 @@
             count++;
           }
         }
-        if (count === 0) return showToast('未找到有效记录');
+        if (count === 0) return showToast('未找到有效记录，请检查数据内容');
         saveData(existing);
         closeImportModal();
         render();
         showToast('恢复成功，共导入' + count + '条记录');
       } catch(e) {
-        showToast('数据格式有误，请确认粘贴了完整的导出文本');
+        // 显示具体错误信息，方便排查
+        showToast('导入失败：' + e.message);
       }
     }
     document.getElementById('importModal').addEventListener('click', function(e) {
