@@ -290,6 +290,18 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal">
+      <h3>导出数据</h3>
+      <div class="modal-date">长按下方文本框，全选后复制</div>
+      <textarea id="exportText" rows="6" readonly></textarea>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="closeExportModal()">关闭</button>
+        <button class="btn-save" onclick="copyExportText()">复制文本</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     var STORAGE_KEY = 'work_tracker_data';
     function loadData() { try { var r=localStorage.getItem(STORAGE_KEY); return r?JSON.parse(r):{}; } catch(e){ return{}; } }
@@ -482,16 +494,39 @@
       for (var k in data) { if (data.hasOwnProperty(k)) keys.push(k); }
       if (keys.length === 0) return showToast('暂无数据可导出');
       var json = JSON.stringify(data);
-      var encoded = 'WT1:' + btoa(unescape(encodeURIComponent(json)));
+      // 直接用可读 JSON，不用 base64，避免微信传输截断问题
+      var text = 'WT2:' + json;
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(encoded).then(function() {
-          showToast('数据已复制，发送给微信文件传输助手保存');
+        navigator.clipboard.writeText(text).then(function() {
+          showToast('数据已复制，发给文件传输助手保存');
+        }, function() {
+          // clipboard 失败降级
+          showExportModal(text);
         });
       } else {
-        // 降级：弹窗手动复制
-        prompt('复制下方文本保存（长按-全选-复制）：', encoded);
+        showExportModal(text);
       }
     }
+    function showExportModal(text) {
+      document.getElementById('exportText').value = text;
+      document.getElementById('exportModal').classList.add('show');
+    }
+    function closeExportModal() {
+      document.getElementById('exportModal').classList.remove('show');
+    }
+    function copyExportText() {
+      var el = document.getElementById('exportText');
+      el.select(); el.setSelectionRange(0, 99999);
+      try {
+        document.execCommand('copy');
+        showToast('复制成功');
+      } catch(e) {
+        showToast('请手动长按全选复制');
+      }
+    }
+    document.getElementById('exportModal').addEventListener('click', function(e) {
+      if (e.target === this) closeExportModal();
+    });
 
     // ========== 导入数据 ==========
     function openImportModal() {
@@ -506,27 +541,36 @@
       if (!text) return showToast('请粘贴导出的数据');
       try {
         var json;
-        if (text.indexOf('WT1:') === 0) {
-          json = decodeURIComponent(escape(atob(text.substring(4))));
-        } else {
+        // 新格式 WT2: 直接是 JSON
+        if (text.indexOf('WT2:') === 0) {
+          json = text.substring(4);
+        }
+        // 旧格式 WT1: base64 编码
+        else if (text.indexOf('WT1:') === 0) {
+          var cleaned = text.substring(4).replace(/\s/g, '');
+          json = decodeURIComponent(escape(atob(cleaned)));
+        }
+        // 兼容直接粘贴 JSON
+        else {
           json = text;
         }
         var imported = JSON.parse(json);
-        if (typeof imported !== 'object') throw new Error('格式错误');
+        if (typeof imported !== 'object' || imported === null) throw new Error('格式错误');
         var existing = loadData();
         var count = 0;
         for (var k in imported) {
-          if (imported.hasOwnProperty(k) && imported[k].in && imported[k].out) {
+          if (imported.hasOwnProperty(k) && imported[k] && imported[k].in && imported[k].out) {
             existing[k] = imported[k];
             count++;
           }
         }
+        if (count === 0) return showToast('未找到有效记录');
         saveData(existing);
         closeImportModal();
         render();
         showToast('恢复成功，共导入' + count + '条记录');
       } catch(e) {
-        showToast('数据格式有误，请检查后重试');
+        showToast('数据格式有误，请确认粘贴了完整的导出文本');
       }
     }
     document.getElementById('importModal').addEventListener('click', function(e) {
