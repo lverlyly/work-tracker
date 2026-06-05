@@ -184,10 +184,19 @@
     .toast { position:fixed; top:20px; left:50%; -webkit-transform:translateX(-50%); transform:translateX(-50%); background:#333; color:#fff; padding:10px 24px; border-radius:20px; font-size:14px; z-index:2000; opacity:0; -webkit-transition:opacity .3s; transition:opacity .3s; pointer-events:none; }
     .toast.show { opacity:1; }
 
-    /* 分享 */
-    .share-bar { text-align:center; margin-top:20px; }
-    .share-btn { background:#fff; border:1.5px solid #e8ecf1; border-radius:20px; padding:10px 24px; font-size:14px; color:#7f8c9b; cursor:pointer; font-family:inherit; }
-    .share-btn:active { background:#f5f6fa; }
+    /* 底部操作栏 */
+    .action-bar { text-align:center; margin-top:20px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+    .action-btn { background:#fff; border:1.5px solid #e8ecf1; border-radius:20px; padding:10px 16px; font-size:13px; color:#7f8c9b; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; }
+    .action-btn:active { background:#f5f6fa; }
+    .action-btn.primary { color:#4f6ef7; border-color:#4f6ef7; }
+
+    /* 导入弹窗 textarea */
+    .modal textarea {
+      width:100%; border:1.5px solid #e8ecf1; border-radius:8px; padding:12px; font-size:13px;
+      font-family:monospace; resize:none; background:#fafbfc; color:#2c3e50; outline:none;
+      -webkit-appearance:none; appearance:none;
+    }
+    .modal textarea:focus { border-color:#4f6ef7; }
   </style>
 </head>
 <body>
@@ -242,8 +251,10 @@
       </ul>
     </div>
 
-    <div class="share-bar">
-      <button class="share-btn" onclick="sharePage()">分享给同事</button>
+    <div class="action-bar">
+      <button class="action-btn primary" onclick="exportData()">导出数据</button>
+      <button class="action-btn" onclick="openImportModal()">导入数据</button>
+      <button class="action-btn" onclick="sharePage()">分享给同事</button>
     </div>
   </div>
 
@@ -264,6 +275,18 @@
         <button class="btn-save" onclick="saveEdit()">保存</button>
       </div>
       <button class="btn-delete" id="modalDeleteBtn" onclick="deleteFromModal()" style="display:none;">删除此记录</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="importModal">
+    <div class="modal">
+      <h3>导入数据</h3>
+      <div class="modal-date">粘贴之前导出的数据文本，点击恢复</div>
+      <textarea id="importText" rows="6" placeholder="粘贴导出的数据到这里..."></textarea>
+      <div class="form-actions">
+        <button class="btn-cancel" onclick="closeImportModal()">取消</button>
+        <button class="btn-save" onclick="importData()">恢复数据</button>
+      </div>
     </div>
   </div>
 
@@ -451,6 +474,64 @@
       else if(navigator.clipboard){ navigator.clipboard.writeText(t+'\n'+location.href).then(function(){showToast('已复制分享链接');}); }
       else showToast('长按页面链接分享给同事');
     }
+
+    // ========== 导出数据 ==========
+    function exportData() {
+      var data = loadData();
+      var keys = [];
+      for (var k in data) { if (data.hasOwnProperty(k)) keys.push(k); }
+      if (keys.length === 0) return showToast('暂无数据可导出');
+      var json = JSON.stringify(data);
+      var encoded = 'WT1:' + btoa(unescape(encodeURIComponent(json)));
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(encoded).then(function() {
+          showToast('数据已复制，发送给微信文件传输助手保存');
+        });
+      } else {
+        // 降级：弹窗手动复制
+        prompt('复制下方文本保存（长按-全选-复制）：', encoded);
+      }
+    }
+
+    // ========== 导入数据 ==========
+    function openImportModal() {
+      document.getElementById('importText').value = '';
+      document.getElementById('importModal').classList.add('show');
+    }
+    function closeImportModal() {
+      document.getElementById('importModal').classList.remove('show');
+    }
+    function importData() {
+      var text = document.getElementById('importText').value.trim();
+      if (!text) return showToast('请粘贴导出的数据');
+      try {
+        var json;
+        if (text.indexOf('WT1:') === 0) {
+          json = decodeURIComponent(escape(atob(text.substring(4))));
+        } else {
+          json = text;
+        }
+        var imported = JSON.parse(json);
+        if (typeof imported !== 'object') throw new Error('格式错误');
+        var existing = loadData();
+        var count = 0;
+        for (var k in imported) {
+          if (imported.hasOwnProperty(k) && imported[k].in && imported[k].out) {
+            existing[k] = imported[k];
+            count++;
+          }
+        }
+        saveData(existing);
+        closeImportModal();
+        render();
+        showToast('恢复成功，共导入' + count + '条记录');
+      } catch(e) {
+        showToast('数据格式有误，请检查后重试');
+      }
+    }
+    document.getElementById('importModal').addEventListener('click', function(e) {
+      if (e.target === this) closeImportModal();
+    });
 
     render();
     setInterval(render, 30000);
