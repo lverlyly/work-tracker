@@ -247,8 +247,8 @@
     </div>
   </div>
   <div class="publish-bar">
-    <div class="status" id="pubStatus">暂无修改</div>
-    <button class="btn btn-success" id="pubBtn" disabled>发布到线上</button>
+    <div class="status" id="pubStatus">点击发布同步到线上</div>
+    <button class="btn btn-success" id="pubBtn">发布到线上</button>
   </div>
 </div>
 
@@ -624,12 +624,12 @@ function markChanged() {
 function markPublished() {
   HAS_CHANGES = false;
   document.getElementById('pubStatus').innerHTML = '<span class="published">已发布到线上</span>';
-  document.getElementById('pubBtn').disabled = true;
+  document.getElementById('pubBtn').disabled = false;
+  document.getElementById('pubBtn').textContent = '发布到线上';
 }
 
 // ========== 发布到GitHub（纯回调，无Promise） ==========
 function publishAll() {
-  if (!HAS_CHANGES) return;
   if (!GITHUB_TOKEN) {
     showToast('请先输入GitHub发布令牌才能发布', 'error');
     return;
@@ -649,9 +649,11 @@ function publishAll() {
           btn.disabled = false;
           btn.textContent = '发布到线上';
         } else {
-          markPublished();
+          HAS_CHANGES = false;
+          document.getElementById('pubStatus').innerHTML = '<span class="published">已发布到线上</span>';
           showToast('发布成功！几秒后线上更新', 'success');
           btn.textContent = '发布到线上';
+          btn.disabled = false;
         }
       });
     });
