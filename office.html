@@ -349,6 +349,7 @@ function goPage(n) {
   renderList();
   window.scrollTo({ top: 200, behavior: 'smooth' });
 }
+window.goPage = goPage;
 
 // ========== 详情弹窗 ==========
 function showDetail(idx) {
@@ -403,7 +404,9 @@ function showDetail(idx) {
 
   document.getElementById('detailModal').classList.add('show');
 }
+window.showDetail = showDetail;
 function closeDetail() { document.getElementById('detailModal').classList.remove('show'); }
+window.closeDetail = closeDetail;
 document.getElementById('detailModal').addEventListener('click', function(e) { if (e.target === this) closeDetail(); });
 
 // ========== 筛选按钮绑定 ==========
