@@ -69,7 +69,7 @@
     .btn-sm { padding:5px 12px; font-size:12px; }
     .btn:disabled { opacity:.5; pointer-events:none; }
 
-    .admin-body { max-width:900px; margin:0 auto; padding:20px; }
+    .admin-body { max-width:900px; margin:0 auto; padding:20px; padding-bottom:60px; }
 
     /* 楼盘列表 */
     .prop-list { display:flex; flex-direction:column; gap:12px; }
@@ -156,12 +156,6 @@
     .toast.show { -webkit-transform:translateX(-50%) translateY(0); transform:translateX(-50%) translateY(0); }
     .toast.success { background:#67c23a; }
     .toast.error { background:#f56c6c; }
-
-    /* 加载中 */
-    .loading-mask {
-      position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,.8);
-      z-index:9998; display:flex; align-items:center; justify-content:center; font-size:15px; color:#7f8c9b;
-    }
 
     /* 响应式 */
     @media (max-width:600px) {
@@ -348,6 +342,8 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- data.js跟office.html共享同一个文件，直接用script标签加载 -->
+<script src="data.js"></script>
 <script>
 // ========== 配置 ==========
 var ADMIN_PWD = 'baoan2026';
@@ -361,69 +357,36 @@ var pendingImages = {};
 var pendingQrImage = null;
 var editingIndex = -1;
 
-// ========== 默认数据（仅作为兜底，优先用线上data.js） ==========
-var defaultSiteConfig = {
-  heroTitle: '深圳宝安·南山',
-  heroHighlight: '写字楼真实房源',
-  heroSubtitle: '真实楼盘 · 免费带看 · 一对一服务',
-  footerTitle: '深圳宝安南山写字楼租赁服务',
-  footerDesc: '我们专注深圳宝安区、南山区写字楼办公室租赁，覆盖前海、宝安中心、西乡、南山科技园等核心商务板块。真实房源，实地拍摄，无论您是初创企业还是成熟公司，我们都能为您匹配最合适的办公空间。',
-  footerDesc2: '专业经纪人一对一服务，从选址到签约全程跟进，让您省心省力找到理想办公室。',
-  phone: '13500000000',
-  wechatQrImg: '',
-  areas: [
-    {key: 'qianhai', label: '前海', hot: true},
-    {key: 'baoan-center', label: '宝安中心', hot: true},
-    {key: 'xixiang', label: '西乡', hot: true},
-    {key: 'nanshan-tech', label: '南山科技园', hot: true}
-  ]
-};
-
-var defaultProperties = [
-  {name:'前海华润金融中心',area:'qianhai',rent:'160-270',rentNote:'含税，可申请政府补贴60/40/20元/㎡',sizeRange:'160-5000',address:'前海自由贸易区梦海大道与桂湾四路交汇处',metro:'5号线桂湾站',tags:['超甲级','近地铁','品牌开发商','政府补贴'],highlights:['华润集团开发及管理，249.4m超高层','12.8米层高大堂，24部通力高速电梯','前海唯一万象城商业配套','可申请政府补贴60/40/20元/㎡','企业所得税15%优惠，总部扶持最高3000万'],img:'images/huarun-qianhai.jpg',developer:'华润集团',property:'华润物管',floors:'53层',contact:'13500000000'},
-  {name:'前海科兴科学园',area:'xixiang',rent:'80-128',rentNote:'含税含物业',sizeRange:'169-20000',address:'宝安区西乡银田路与兴业路交汇处',metro:'11号线碧海湾站A出口',tags:['甲级','近地铁','大面积','品牌开发商'],highlights:['正中集团倾力打造，甲级品质','约11米挑高大堂，冰蓄冷中央空调24h供冷','100:1超量停车位（2800个）','使用率高达70%-75%','180度一线山海景观'],img:'images/qianhai-kexing.jpg',developer:'正中集团',property:'深圳市正中企业服务有限公司',floors:'约30层',contact:'13500000000'},
-  {name:'龙光世纪大厦',area:'baoan-center',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'600-10000',address:'宝安区宝华路与兴华路交汇处',metro:'11号线桥头站C出口',tags:['近地铁','大面积','可分割'],highlights:['紧邻地铁11号线，串联宝中/南山/福田','靠近国际会展中心，享会展经济红利','规划高品质商务公寓和办公大厦','商业配套齐全'],img:'images/longguang-shiji.jpg',developer:'龙光集团',property:'面议',floors:'面议',contact:'13500000000'},
-  {name:'前海颐都大厦',area:'qianhai',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'南山区前海深港合作区妈湾片区',metro:'1号线/2号线',tags:['近地铁','可分割','前海政策'],highlights:['前海深港合作区核心位置','多条地铁及公交环绕','配备先进办公设施及高速网络','商业配套丰富','享前海政策红利'],img:'images/qianhai-yidu.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'},
-  {name:'华润置地大厦',area:'nanshan-tech',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'南山区深南大道与铜鼓路交界西北口',metro:'1号线高新园站',tags:['品牌开发商','近地铁','科技园核心'],highlights:['南山科技园核心区，华润品牌品质','地铁1/5/7号线多站覆盖','楼宇智能化系统，高效中央空调','高科技/金融/文创企业聚集'],img:'images/huarun-zhidi.jpg',developer:'华润置地',property:'华润物业',floors:'面议',contact:'13500000000'},
-  {name:'前海深港基金小镇',area:'qianhai',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'600-10000',address:'南山区桂湾四路',metro:'5号线桂湾站',tags:['金融专属','前海政策','独栋可冠名'],highlights:['前海深港合作区核心，毗邻香港','连接内地与香港金融市场的重要桥梁','建筑风格融合现代与传统','享前海先行先试改革红利'],img:'images/jijin-xiaozhen.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'},
-  {name:'中粮大悦城',area:'baoan-center',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'宝安区建安一路360号',metro:'5号线兴东站',tags:['品牌开发商','配套完善','可分割'],highlights:['宝安中心区核心位置','现代商业与办公空间融合','品牌组合+艺术展览+主题活动','商务餐饮与休闲娱乐设施丰富'],img:'images/zhongliang-dayuecheng.jpg',developer:'中粮集团',property:'面议',floors:'面议',contact:'13500000000'},
-  {name:'金环宇湾芯城',area:'xixiang',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-2000',address:'宝安区西乡铁仔路56号',metro:'1号线西乡站',tags:['科技园区','层高优势','可分割'],highlights:['国家高新区，科技产业园区','层高4.5-6米，空间灵活','聚集信息技术/生物医药/新能源企业','3栋建筑，总建面10.7万平','478个停车位，12台电梯'],img:'images/jinhuanyu-wanxincheng.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'},
-  {name:'南山云科技大厦',area:'nanshan-tech',rent:'面议',rentNote:'物业费33元/㎡/月（含空调）',sizeRange:'145-2000',address:'南山区留仙洞总部基地万科云城六期',metro:'13号线石鼓站（0距离）',tags:['地铁上盖','总部地标','品牌物业'],highlights:['234米留仙洞地标建筑','地铁13号线0距离无缝连接','整层最高使用率80%','37部品牌高速电梯','万科物业高端品质管理','楼下万科里商业MALL'],img:'images/nanshan-yunkeji.jpg',developer:'万科',property:'万科物业',floors:'53层',contact:'13500000000'},
-  {name:'科兴科学园',area:'nanshan-tech',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'南山区科苑路15号',metro:'1号线高新园站/2号线科苑站',tags:['科技园标杆','近地铁','大面积'],highlights:['南山科技园核心地标','集聚AI/大数据/生物医药等高科技企业','智能楼宇系统+中央空调+高速网络','定期举办技术论坛和行业峰会','高端餐饮/酒店/购物中心配套齐全'],img:'images/kexing-kexueyuan.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'}
-];
-
-// ========== 全局数据 ==========
-var siteConfig = null;
-var properties = null;
+// ========== 数据初始化 ==========
+// data.js 已经定义了全局变量 siteConfig 和 properties
+// 如果data.js加载失败（比如离线），用localStorage兜底
+if (typeof siteConfig === 'undefined') {
+  var savedCfg = localStorage.getItem(CONFIG_KEY);
+  var savedProps = localStorage.getItem(STORAGE_KEY);
+  var siteConfig = savedCfg ? JSON.parse(savedCfg) : {
+    heroTitle: '深圳宝安·南山', heroHighlight: '写字楼真实房源',
+    heroSubtitle: '真实楼盘 · 免费带看 · 一对一服务',
+    footerTitle: '深圳宝安南山写字楼租赁服务',
+    footerDesc: '我们专注深圳宝安区、南山区写字楼办公室租赁。',
+    footerDesc2: '专业经纪人一对一服务。',
+    phone: '13500000000', wechatQrImg: '',
+    areas: [{key:'qianhai',label:'前海',hot:true},{key:'baoan-center',label:'宝安中心',hot:true},{key:'xixiang',label:'西乡',hot:true},{key:'nanshan-tech',label:'南山科技园',hot:true}]
+  };
+  var properties = savedProps ? JSON.parse(savedProps) : [];
+}
 
 // ========== 获取区域标签映射 ==========
 function getAreaLabels() {
   var labels = {};
   if (siteConfig && siteConfig.areas) {
     for (var i = 0; i < siteConfig.areas.length; i++) {
-      var a = siteConfig.areas[i];
-      labels[a.key] = a.label;
+      labels[siteConfig.areas[i].key] = siteConfig.areas[i].label;
     }
   }
   return labels;
 }
 
 // ========== 数据管理 ==========
-function loadFromLocalStorage() {
-  // 先尝试从localStorage读取
-  var savedCfg = localStorage.getItem(CONFIG_KEY);
-  var savedProps = localStorage.getItem(STORAGE_KEY);
-  if (savedCfg) {
-    try { siteConfig = JSON.parse(savedCfg); } catch(e) { siteConfig = null; }
-  }
-  if (savedProps) {
-    try { properties = JSON.parse(savedProps); } catch(e) { properties = null; }
-  }
-  // 兜底
-  if (!siteConfig) siteConfig = JSON.parse(JSON.stringify(defaultSiteConfig));
-  if (!properties) properties = JSON.parse(JSON.stringify(defaultProperties));
-}
-
 function savePropList(list) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   markChanged();
@@ -434,45 +397,6 @@ function saveSiteConfig(cfg) {
   markChanged();
 }
 
-// ========== 从线上拉取最新data.js ==========
-function fetchLatestData(callback) {
-  var xhr = new XMLHttpRequest();
-  // 加时间戳防止缓存
-  xhr.open('GET', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/data.js?ref=' + GITHUB_BRANCH + '&_t=' + Date.now());
-  xhr.setRequestHeader('Accept', 'application/vnd.github.v3+json');
-  if (GITHUB_TOKEN) xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
-  xhr.onload = function() {
-    if (xhr.status === 200) {
-      try {
-        var resp = JSON.parse(xhr.responseText);
-        var content = decodeBase64Utf8(resp.content);
-        // 执行data.js内容获取变量
-        // 用Function执行，获取siteConfig和properties
-        var fn = new Function(content + '\nreturn {siteConfig: siteConfig, properties: properties};');
-        var result = fn();
-        if (result.siteConfig) siteConfig = result.siteConfig;
-        if (result.properties) properties = result.properties;
-        // 同步到localStorage
-        localStorage.setItem(CONFIG_KEY, JSON.stringify(siteConfig));
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
-        callback(true);
-      } catch(e) {
-        callback(false);
-      }
-    } else {
-      callback(false);
-    }
-  };
-  xhr.onerror = function() { callback(false); };
-  xhr.send();
-}
-
-function decodeBase64Utf8(str) {
-  return decodeURIComponent(atob(str.replace(/\n/g, '')).split('').map(function(c) {
-    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-  }).join(''));
-}
-
 // ========== Toast ==========
 var toastTimer = null;
 function showToast(msg, type) {
@@ -480,7 +404,7 @@ function showToast(msg, type) {
   t.textContent = msg;
   t.className = 'toast show ' + (type || '');
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(function() { t.className = 'toast'; }, 2500);
+  toastTimer = setTimeout(function() { t.className = 'toast'; }, 3000);
 }
 
 // ========== 登录 ==========
@@ -489,29 +413,14 @@ function tryLogin() {
   var token = document.getElementById('loginToken').value.trim();
   if (pwd === ADMIN_PWD) {
     GITHUB_TOKEN = token;
-    var loginBtn = document.getElementById('loginBtn');
-    loginBtn.textContent = '加载中...';
-    loginBtn.disabled = true;
-
-    // 先从localStorage加载
-    loadFromLocalStorage();
-
-    // 然后从线上拉最新数据
-    fetchLatestData(function(ok) {
-      document.getElementById('loginPage').style.display = 'none';
-      document.getElementById('adminPage').style.display = 'block';
-      renderList();
-      loginBtn.textContent = '进入后台';
-      loginBtn.disabled = false;
-      if (ok) {
-        showToast('已同步线上最新数据', 'success');
-      } else {
-        showToast('使用本地数据，线上同步失败', 'error');
-      }
-      if (!GITHUB_TOKEN) {
-        showToast('未输入发布令牌，编辑可用但无法发布', 'error');
-      }
-    });
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('adminPage').style.display = 'block';
+    renderList();
+    if (!token) {
+      showToast('未输入发布令牌，编辑可用但无法发布', 'error');
+    } else {
+      showToast('已加载线上数据', 'success');
+    }
   } else {
     document.getElementById('loginErr').style.display = 'block';
     document.getElementById('loginPwd').value = '';
@@ -583,13 +492,10 @@ function updateAreaSelect(selectedArea) {
       html += '<option value="' + a.key + '"' + sel + '>' + a.label + '</option>';
     }
   }
-  // 如果选中的区域不在列表中，追加一个
   if (selectedArea && html.indexOf('value="' + selectedArea + '"') < 0) {
     html += '<option value="' + selectedArea + '" selected>' + selectedArea + '</option>';
   }
-  if (!html) {
-    html = '<option value="qianhai">前海</option>';
-  }
+  if (!html) html = '<option value="qianhai">前海</option>';
   select.innerHTML = html;
 }
 
@@ -652,7 +558,6 @@ function saveEdit() {
 
   var tagsStr = document.getElementById('fTags').value.trim();
   var tags = tagsStr ? tagsStr.split(/[,，]/).filter(function(t){ return t.trim() !== ''; }) : [];
-
   var highlightsStr = document.getElementById('fHighlights').value.trim();
   var highlights = highlightsStr ? highlightsStr.split('\n').filter(function(h){ return h.trim() !== ''; }) : [];
 
@@ -692,7 +597,7 @@ function saveEdit() {
   savePropList(properties);
   renderList();
   closeEdit();
-  showToast('已保存', 'success');
+  showToast('已保存，记得点发布同步到线上', 'success');
 }
 
 function deleteProp(idx) {
@@ -709,7 +614,7 @@ function markChanged() {
   document.getElementById('pubStatus').innerHTML = '<span class="changed">有未发布的修改</span>';
 }
 
-// ========== 发布到GitHub（纯回调，无Promise） ==========
+// ========== 发布到GitHub ==========
 function publishAll() {
   if (!GITHUB_TOKEN) {
     showToast('请先输入GitHub发布令牌才能发布', 'error');
@@ -720,10 +625,8 @@ function publishAll() {
   btn.disabled = true;
   btn.textContent = '发布中...';
 
-  // 先上传待处理的图片和微信二维码
   uploadPendingImages(0, function() {
     uploadQrImage(function() {
-      // 所有图片上传完后，推送data.js
       pushDataJs(function(err) {
         if (err) {
           showToast('发布失败：' + err, 'error');
@@ -731,14 +634,12 @@ function publishAll() {
           btn.textContent = '发布到线上';
         } else {
           HAS_CHANGES = false;
-          // 发布成功后同步localStorage
           localStorage.setItem(CONFIG_KEY, JSON.stringify(siteConfig));
           localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
           document.getElementById('pubStatus').innerHTML = '<span class="published">已发布到线上</span>';
-          showToast('发布成功！30秒后线上更新', 'success');
+          showToast('发布成功！30秒后线上更新，可刷新主页验证', 'success');
           btn.textContent = '发布到线上';
           btn.disabled = false;
-          // 触发GitHub Pages重建
           triggerPagesBuild();
         }
       });
@@ -760,16 +661,10 @@ function triggerPagesBuild() {
 function uploadPendingImages(index, callback) {
   while (index < properties.length) {
     var p = properties[index];
-    if (p._imgPending && p.img && p.img.indexOf('data:') === 0) {
-      break;
-    }
+    if (p._imgPending && p.img && p.img.indexOf('data:') === 0) break;
     index++;
   }
-
-  if (index >= properties.length) {
-    callback();
-    return;
-  }
+  if (index >= properties.length) { callback(); return; }
 
   var p = properties[index];
   var base64Data = p.img;
@@ -795,16 +690,12 @@ function uploadPendingImages(index, callback) {
       renderList();
       uploadPendingImages(index + 1, callback);
     } else {
-      showToast('图片上传失败，跳过', 'error');
+      showToast('图片上传失败', 'error');
       callback();
     }
   };
   xhr.onerror = function() { callback(); };
-  xhr.send(JSON.stringify({
-    message: '上传图片: ' + filename,
-    branch: GITHUB_BRANCH,
-    content: rawBase64
-  }));
+  xhr.send(JSON.stringify({ message: '上传图片: ' + filename, branch: GITHUB_BRANCH, content: rawBase64 }));
 }
 
 // 上传微信二维码到GitHub
@@ -817,9 +708,7 @@ function uploadQrImage(callback) {
   var parts = base64Data.split(',');
   var mimeType = parts[0].match(/:(.*?);/);
   var ext = 'jpg';
-  if (mimeType && mimeType[1]) {
-    if (mimeType[1] === 'image/png') ext = 'png';
-  }
+  if (mimeType && mimeType[1]) { if (mimeType[1] === 'image/png') ext = 'png'; }
   var rawBase64 = parts[1];
   var filename = 'images/wechat_qr.' + ext;
 
@@ -830,25 +719,16 @@ function uploadQrImage(callback) {
   xhr0.setRequestHeader('Accept', 'application/vnd.github.v3+json');
   xhr0.onload = function() {
     var sha = null;
-    if (xhr0.status === 200) {
-      try { sha = JSON.parse(xhr0.responseText).sha; } catch(e) {}
-    }
+    if (xhr0.status === 200) { try { sha = JSON.parse(xhr0.responseText).sha; } catch(e) {} }
     doUploadQr(filename, rawBase64, sha, callback);
   };
-  xhr0.onerror = function() {
-    doUploadQr(filename, rawBase64, null, callback);
-  };
+  xhr0.onerror = function() { doUploadQr(filename, rawBase64, null, callback); };
   xhr0.send();
 }
 
 function doUploadQr(filename, rawBase64, sha, callback) {
-  var payload = {
-    message: '上传微信二维码',
-    branch: GITHUB_BRANCH,
-    content: rawBase64
-  };
+  var payload = { message: '上传微信二维码', branch: GITHUB_BRANCH, content: rawBase64 };
   if (sha) payload.sha = sha;
-
   var xhr = new XMLHttpRequest();
   xhr.open('PUT', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + filename);
   xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
@@ -865,7 +745,7 @@ function doUploadQr(filename, rawBase64, sha, callback) {
   xhr.send(JSON.stringify(payload));
 }
 
-// 推送data.js数据文件
+// ========== 推送data.js ==========
 function pushDataJs(callback) {
   var content = 'var siteConfig = {\n';
   content += "  heroTitle: '" + (siteConfig.heroTitle || '').replace(/'/g, "\\'") + "',\n";
@@ -881,8 +761,7 @@ function pushDataJs(callback) {
     var a = siteConfig.areas[i];
     content += "    {key: '" + a.key + "', label: '" + (a.label || '').replace(/'/g, "\\'") + "', hot: " + (a.hot ? 'true' : 'false') + "}" + (i < siteConfig.areas.length - 1 ? ',' : '') + '\n';
   }
-  content += '  ]\n';
-  content += '};\n\n';
+  content += '  ]\n};\n\n';
 
   content += 'var properties = [\n';
   for (var i = 0; i < properties.length; i++) {
@@ -903,48 +782,40 @@ function pushDataJs(callback) {
   }
   content += '];\n';
 
-  // 先获取当前data.js的SHA
+  // 获取当前data.js的SHA
   var xhr0 = new XMLHttpRequest();
   xhr0.open('GET', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/data.js?ref=' + GITHUB_BRANCH);
   xhr0.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
   xhr0.setRequestHeader('Accept', 'application/vnd.github.v3+json');
   xhr0.onload = function() {
     var sha = null;
-    if (xhr0.status === 200) {
-      try { sha = JSON.parse(xhr0.responseText).sha; } catch(e) {}
-    }
+    if (xhr0.status === 200) { try { sha = JSON.parse(xhr0.responseText).sha; } catch(e) {} }
     doPushDataJs(content, sha, callback);
   };
-  xhr0.onerror = function() {
-    doPushDataJs(content, null, callback);
-  };
+  xhr0.onerror = function() { doPushDataJs(content, null, callback); };
   xhr0.send();
 }
 
 function doPushDataJs(content, sha, callback) {
   var encoded = utf8ToBase64(content);
-  var payload = {
-    message: '更新房源数据',
-    branch: GITHUB_BRANCH,
-    content: encoded
-  };
+  var payload = { message: '更新房源数据 ' + new Date().toLocaleString(), branch: GITHUB_BRANCH, content: encoded };
   if (sha) payload.sha = sha;
 
-  var xhr2 = new XMLHttpRequest();
-  xhr2.open('PUT', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/data.js');
-  xhr2.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
-  xhr2.setRequestHeader('Content-Type', 'application/json');
-  xhr2.onload = function() {
-    if (xhr2.status === 200 || xhr2.status === 201) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('PUT', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/data.js');
+  xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    if (xhr.status === 200 || xhr.status === 201) {
       callback(null);
     } else {
-      var msg = '推送失败 HTTP ' + xhr2.status;
-      try { var resp = JSON.parse(xhr2.responseText); if (resp.message) msg += ': ' + resp.message; } catch(e) {}
+      var msg = 'HTTP ' + xhr.status;
+      try { var r = JSON.parse(xhr.responseText); if (r.message) msg += ': ' + r.message; } catch(e) {}
       callback(msg);
     }
   };
-  xhr2.onerror = function() { callback('网络错误'); };
-  xhr2.send(JSON.stringify(payload));
+  xhr.onerror = function() { callback('网络错误'); };
+  xhr.send(JSON.stringify(payload));
 }
 
 // UTF-8安全的Base64编码
@@ -956,21 +827,15 @@ function utf8ToBase64(str) {
 
 // ========== 事件绑定 ==========
 document.getElementById('loginBtn').addEventListener('click', tryLogin);
-document.getElementById('loginPwd').addEventListener('keydown', function(e) {
-  if (e.keyCode === 13) tryLogin();
-});
-document.getElementById('loginToken').addEventListener('keydown', function(e) {
-  if (e.keyCode === 13) tryLogin();
-});
+document.getElementById('loginPwd').addEventListener('keydown', function(e) { if (e.keyCode === 13) tryLogin(); });
+document.getElementById('loginToken').addEventListener('keydown', function(e) { if (e.keyCode === 13) tryLogin(); });
 document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('addBtn').addEventListener('click', function() { openEdit(-1); });
 document.getElementById('editCloseBtn').addEventListener('click', closeEdit);
 document.getElementById('editCancelBtn').addEventListener('click', closeEdit);
 document.getElementById('editSaveBtn').addEventListener('click', saveEdit);
 document.getElementById('pubBtn').addEventListener('click', publishAll);
-document.getElementById('editOverlay').addEventListener('click', function(e) {
-  if (e.target === this) closeEdit();
-});
+document.getElementById('editOverlay').addEventListener('click', function(e) { if (e.target === this) closeEdit(); });
 
 // ========== Tab切换 ==========
 document.querySelector('.admin-tabs').addEventListener('click', function(e) {
@@ -996,17 +861,14 @@ function loadSettingsForm() {
   document.getElementById('sFooterTitle').value = siteConfig.footerTitle || '';
   document.getElementById('sFooterDesc').value = siteConfig.footerDesc || '';
   document.getElementById('sFooterDesc2').value = siteConfig.footerDesc2 || '';
-  // 区域列表
   var areasText = '';
   for (var i = 0; i < siteConfig.areas.length; i++) {
     var a = siteConfig.areas[i];
     areasText += a.key + ':' + a.label + (a.hot ? ':hot' : '') + '\n';
   }
   document.getElementById('sAreas').value = areasText.trim();
-  // 微信二维码预览
   var qrHint = document.getElementById('qrUploadHint');
   if (siteConfig.wechatQrImg && siteConfig.wechatQrImg.indexOf('data:') !== 0) {
-    // 线上图片路径，加时间戳防缓存
     qrHint.innerHTML = '<img src="' + siteConfig.wechatQrImg + '?_t=' + Date.now() + '" alt="二维码" style="max-height:80px;"><small>点击重新上传</small>';
   } else if (siteConfig.wechatQrImg && siteConfig.wechatQrImg.indexOf('data:') === 0) {
     qrHint.innerHTML = '<img src="' + siteConfig.wechatQrImg + '" alt="二维码" style="max-height:80px;"><small>已选新图片，点击重新上传</small>';
@@ -1034,7 +896,6 @@ document.getElementById('saveSettingsBtn').addEventListener('click', function() 
   siteConfig.footerTitle = document.getElementById('sFooterTitle').value.trim();
   siteConfig.footerDesc = document.getElementById('sFooterDesc').value.trim();
   siteConfig.footerDesc2 = document.getElementById('sFooterDesc2').value.trim();
-  // 解析区域列表
   var areasText = document.getElementById('sAreas').value.trim();
   var newAreas = [];
   var lines = areasText.split('\n');
@@ -1047,14 +908,13 @@ document.getElementById('saveSettingsBtn').addEventListener('click', function() 
     }
   }
   if (newAreas.length > 0) siteConfig.areas = newAreas;
-  // 微信二维码
   if (pendingQrImage) {
     siteConfig.wechatQrImg = pendingQrImage;
     siteConfig._qrPending = true;
     pendingQrImage = null;
   }
   saveSiteConfig(siteConfig);
-  showToast('设置已保存，记得点"发布到线上"同步', 'success');
+  showToast('设置已保存，记得点发布同步到线上', 'success');
 });
 </script>
 </body>
