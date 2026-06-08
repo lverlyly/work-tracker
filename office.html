@@ -233,6 +233,19 @@
 
 <script src="data.js"></script>
 <script>
+// ========== 动态加载最新data.js（防缓存） ==========
+(function() {
+  var scripts = document.querySelectorAll('script[src="data.js"]');
+  if (scripts.length > 0) {
+    var latestSrc = 'data.js?_t=' + Date.now();
+    var newScript = document.createElement('script');
+    newScript.src = latestSrc;
+    newScript.onload = function() { initPage(); };
+    document.head.appendChild(newScript);
+  }
+})();
+
+function initPage() {
 // ========== 初始化页面文案 ==========
 document.getElementById('heroTitle').innerHTML = siteConfig.heroTitle + '<span>' + siteConfig.heroHighlight + '</span>';
 document.getElementById('heroSubtitle').textContent = siteConfig.heroSubtitle;
@@ -470,6 +483,7 @@ function updateJsonLd() {
 updateJsonLd();
 
 renderList();
+} // end of initPage
 </script>
 </body>
 </html>
