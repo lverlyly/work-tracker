@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>任务看板 - 办公租赁运营</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5; color: #1a1a2e; min-height: 100vh;
+    }
+
+    /* 顶栏 */
+    .topbar {
+      background: linear-gradient(135deg, #4f6ef7 0%, #6c5ce7 100%);
+      color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h1 { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+    .topbar .date { font-size: 13px; opacity: .85; }
+    .topbar .stats { display: flex; gap: 24px; }
+    .topbar .stat { text-align: center; }
+    .topbar .stat .num { font-size: 28px; font-weight: 700; }
+    .topbar .stat .label { font-size: 11px; opacity:.8; }
+
+    /* 主体 */
+    .main { max-width: 1200px; margin: 24px auto; padding: 0 24px; }
+
+    /* 快捷新增 */
+    .quick-add {
+      background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
+      display: flex; gap: 12px; align-items: center; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .quick-add input {
+      flex:1; border:1.5px solid #e8ecf1; border-radius:8px; padding:10px 14px; font-size:14px;
+      font-family:inherit; outline:none; color:#1a1a2e;
+    }
+    .quick-add input:focus { border-color:#4f6ef7; }
+    .quick-add select {
+      border:1.5px solid #e8ecf1; border-radius:8px; padding:10px 14px; font-size:14px;
+      font-family:inherit; outline:none; color:#1a1a2e; background:#fff; cursor:pointer;
+    }
+    .quick-add button {
+      background:#4f6ef7; color:#fff; border:none; border-radius:8px; padding:10px 20px;
+      font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;
+    }
+    .quick-add button:active { opacity:.85; }
+
+    /* 看板区域 */
+    .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+    .column {
+      background: #f7f8fc; border-radius: 12px; padding: 16px; min-height: 400px;
+    }
+    .column-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e8ecf1;
+    }
+    .column-header .title {
+      font-size: 14px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
+    }
+    .column-header .count {
+      background: #e8ecf1; color: #7f8c9b; font-size: 11px; font-weight: 700;
+      border-radius: 10px; padding: 2px 8px;
+    }
+
+    /* 列颜色 */
+    .col-pending .column-header { border-color: #f0ad4e; }
+    .col-pending .column-header .title { color: #f0ad4e; }
+    .col-pending .column-header .count { background: #fef3e2; color: #f0ad4e; }
+
+    .col-progress .column-header { border-color: #4f6ef7; }
+    .col-progress .column-header .title { color: #4f6ef7; }
+    .col-progress .column-header .count { background: #eef0ff; color: #4f6ef7; }
+
+    .col-review .column-header { border-color: #6c5ce7; }
+    .col-review .column-header .title { color: #6c5ce7; }
+    .col-review .column-header .count { background: #f0edff; color: #6c5ce7; }
+
+    .col-done .column-header { border-color: #67c23a; }
+    .col-done .column-header .title { color: #67c23a; }
+    .col-done .column-header .count { background: #f0f9eb; color: #67c23a; }
+
+    /* 任务卡片 */
+    .card {
+      background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06); cursor: pointer;
+      border-left: 3px solid transparent; transition: transform .15s, box-shadow .15s;
+    }
+    .card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+    .card.priority-high { border-left-color: #f56c6c; }
+    .card.priority-mid { border-left-color: #f0ad4e; }
+    .card.priority-low { border-left-color: #67c23a; }
+
+    .card .card-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; line-height: 1.4; }
+    .card .card-desc { font-size: 12px; color: #7f8c9b; line-height: 1.5; margin-bottom: 8px; }
+    .card .card-meta { display: flex; align-items: center; justify-content: space-between; }
+    .card .card-tag {
+      font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;
+    }
+    .tag-content { background: #eef0ff; color: #4f6ef7; }
+    .tag-tech { background: #f0edff; color: #6c5ce7; }
+    .tag-biz { background: #fef3e2; color: #f0ad4e; }
+    .tag-seo { background: #f0f9eb; color: #67c23a; }
+    .card .card-actions { display: flex; gap: 4px; }
+    .card .card-actions button {
+      background: none; border: none; font-size: 16px; cursor: pointer; padding: 2px 4px;
+      border-radius: 4px; opacity: .4;
+    }
+    .card .card-actions button:hover { opacity: 1; background: #f5f6fa; }
+
+    .empty-col { text-align: center; padding: 40px 10px; color: #b0b8c4; font-size: 13px; }
+
+    /* 详情弹窗 */
+    .modal-overlay {
+      position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.4);
+      z-index:1000; display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity .2s;
+    }
+    .modal-overlay.show { opacity:1; pointer-events:auto; }
+    .modal-box {
+      background:#fff; border-radius:16px; width:90%; max-width:480px; padding:28px;
+      box-shadow:0 20px 60px rgba(0,0,0,.15);
+    }
+    .modal-box h3 { font-size:17px; margin-bottom:16px; }
+    .modal-box .field { margin-bottom:14px; }
+    .modal-box .field label { display:block; font-size:12px; color:#7f8c9b; margin-bottom:4px; font-weight:600; }
+    .modal-box .field input, .modal-box .field textarea, .modal-box .field select {
+      width:100%; border:1.5px solid #e8ecf1; border-radius:8px; padding:10px 12px;
+      font-size:14px; font-family:inherit; outline:none; color:#1a1a2e;
+    }
+    .modal-box .field input:focus, .modal-box .field textarea:focus, .modal-box .field select:focus { border-color:#4f6ef7; }
+    .modal-box .field textarea { resize:vertical; min-height:60px; }
+    .modal-btns { display:flex; gap:10px; margin-top:20px; }
+    .modal-btns button {
+      flex:1; border:none; border-radius:8px; padding:12px; font-size:14px; font-weight:600;
+      cursor:pointer; font-family:inherit;
+    }
+    .btn-primary { background:#4f6ef7; color:#fff; }
+    .btn-danger { background:#fef0f0; color:#f56c6c; }
+    .btn-ghost { background:#f5f6fa; color:#7f8c9b; }
+    .btn-primary:active, .btn-danger:active, .btn-ghost:active { opacity:.8; }
+
+    /* Toast */
+    .toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 24px; border-radius:20px; font-size:14px; z-index:2000; opacity:0; transition:opacity .3s; pointer-events:none; }
+    .toast.show { opacity:1; }
+
+    /* 响应式 */
+    @media (max-width: 900px) {
+      .board { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .board { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; gap: 12px; text-align: center; }
+      .quick-add { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>办公租赁 · 任务看板</h1>
+    <div class="date" id="dateStr"></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="num" id="statTotal">0</div><div class="label">总任务</div></div>
+    <div class="stat"><div class="num" id="statPending">0</div><div class="label">待办</div></div>
+    <div class="stat"><div class="num" id="statProgress">0</div><div class="label">进行中</div></div>
+    <div class="stat"><div class="num" id="statDone">0</div><div class="label">已完成</div></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="quick-add">
+    <input type="text" id="newTitle" placeholder="输入新任务...">
+    <select id="newPriority">
+      <option value="high">高优先</option>
+      <option value="mid" selected>中优先</option>
+      <option value="low">低优先</option>
+    </select>
+    <select id="newTag">
+      <option value="content">内容运营</option>
+      <option value="tech">技术开发</option>
+      <option value="biz">业务拓展</option>
+      <option value="seo">SEO/AI优化</option>
+    </select>
+    <button onclick="addTask()">添加</button>
+  </div>
+
+  <div class="board">
+    <div class="column col-pending" id="colPending">
+      <div class="column-header">
+        <span class="title">● 待办</span>
+        <span class="count" id="countPending">0</span>
+      </div>
+      <div class="card-list" id="listPending"></div>
+    </div>
+    <div class="column col-progress" id="colProgress">
+      <div class="column-header">
+        <span class="title">● 进行中</span>
+        <span class="count" id="countProgress">0</span>
+      </div>
+      <div class="card-list" id="listProgress"></div>
+    </div>
+    <div class="column col-review" id="colReview">
+      <div class="column-header">
+        <span class="title">● 待验收</span>
+        <span class="count" id="countReview">0</span>
+      </div>
+      <div class="card-list" id="listReview"></div>
+    </div>
+    <div class="column col-done" id="colDone">
+      <div class="column-header">
+        <span class="title">● 已完成</span>
+        <span class="count" id="countDone">0</span>
+      </div>
+      <div class="card-list" id="listDone"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 编辑弹窗 -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <h3 id="modalTitle">编辑任务</h3>
+    <div class="field"><label>任务标题</label><input type="text" id="editTitle"></div>
+    <div class="field"><label>详细描述</label><textarea id="editDesc" rows="3"></textarea></div>
+    <div class="field"><label>优先级</label>
+      <select id="editPriority"><option value="high">高优先</option><option value="mid">中优先</option><option value="low">低优先</option></select>
+    </div>
+    <div class="field"><label>分类</label>
+      <select id="editTag"><option value="content">内容运营</option><option value="tech">技术开发</option><option value="biz">业务拓展</option><option value="seo">SEO/AI优化</option></select>
+    </div>
+    <div class="field"><label>状态</label>
+      <select id="editStatus"><option value="pending">待办</option><option value="progress">进行中</option><option value="review">待验收</option><option value="done">已完成</option></select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-danger" onclick="deleteCurrentTask()">删除</button>
+      <button class="btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn-primary" onclick="saveCurrentTask()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var DB_KEY = 'task_board_data';
+  var TAG_MAP = { content:'tag-content', tech:'tag-tech', biz:'tag-biz', seo:'tag-seo' };
+  var TAG_LABEL = { content:'内容运营', tech:'技术开发', biz:'业务拓展', seo:'SEO/AI优化' };
+  var STATUS_LIST = ['pending','progress','review','done'];
+  var STATUS_LABEL = { pending:'待办', progress:'进行中', review:'待验收', done:'已完成' };
+
+  function loadTasks() { try { var r=localStorage.getItem(DB_KEY); return r?JSON.parse(r):[]; } catch(e){ return []; } }
+  function saveTasks(t) { localStorage.setItem(DB_KEY, JSON.stringify(t)); }
+
+  // 初始化默认任务
+  function initDefaultTasks() {
+    var tasks = loadTasks();
+    if (tasks.length > 0) return;
+    var defaults = [
+      { title:'创建房源展示页（AI搜索优化）', desc:'在 GitHub Pages 上创建 AI 友好的房源展示页，结构化列出核心房源信息，让 AI 搜索能抓取并推荐。', priority:'high', tag:'seo', status:'pending' },
+      { title:'公众号文章《宝安写字楼的底牌》定稿发布', desc:'刘润写作风格，核心数据：宝安租金111.5元/㎡/月、空置率29.5%、成交面积同比增158.8%。', priority:'high', tag:'content', status:'progress' },
+      { title:'西乡写字楼关键词SEO优化', desc:'分析差距，优化关键词排名，提升线上曝光度。', priority:'mid', tag:'seo', status:'pending' },
+      { title:'小红书4账号矩阵内容发布', desc:'华润前海大厦、易尚中心、沙井甲级写字楼三盘内容同步，每盘拆4个需求角度产出。', priority:'mid', tag:'content', status:'progress' },
+      { title:'抖音/视频号短视频内容制作', desc:'三平台同步发布，注意标题字数限制：小红书≤20字、视频号≤16字、抖音≤15字。', priority:'mid', tag:'content', status:'pending' },
+      { title:'上班计工H5应用持续迭代', desc:'已部署到 GitHub Pages，持续优化功能和兼容性。', priority:'low', tag:'tech', status:'progress' },
+      { title:'视频号封面模板迭代', desc:'shipinhao_cover_template.html 解决主题不突出、文字被截断问题，保留背景模糊和10色系切换。', priority:'mid', tag:'tech', status:'review' },
+      { title:'竞品账号分析', desc:'关注小红书上深圳写字楼租赁相似账号，找竞品或学习参考。', priority:'low', tag:'biz', status:'pending' },
+      { title:'封面模板三平台视觉统一', desc:'抖音/小红书/视频号 HTML 封面模板持续微调字号、间距、配色、模糊度。', priority:'low', tag:'tech', status:'done' },
+      { title:'上班计工H5上线GitHub Pages', desc:'已部署到 lverlyly.github.io/work-tracker/，含月历、打卡、编辑、导出导入功能。', priority:'low', tag:'tech', status:'done' },
+    ];
+    var now = Date.now();
+    for (var i = 0; i < defaults.length; i++) {
+      defaults[i].id = now + i;
+      defaults[i].created = new Date().toISOString().split('T')[0];
+    }
+    saveTasks(defaults);
+  }
+  initDefaultTasks();
+
+  var toastTimer;
+  function showToast(msg) {
+    var e=document.getElementById('toast'); e.textContent=msg; e.classList.add('show');
+    clearTimeout(toastTimer); toastTimer=setTimeout(function(){ e.classList.remove('show'); },1800);
+  }
+
+  // 添加任务
+  function addTask() {
+    var title = document.getElementById('newTitle').value.trim();
+    if (!title) return showToast('请输入任务标题');
+    var tasks = loadTasks();
+    tasks.push({
+      id: Date.now(),
+      title: title,
+      desc: '',
+      priority: document.getElementById('newPriority').value,
+      tag: document.getElementById('newTag').value,
+      status: 'pending',
+      created: new Date().toISOString().split('T')[0]
+    });
+    saveTasks(tasks);
+    document.getElementById('newTitle').value = '';
+    render();
+    showToast('任务已添加');
+  }
+
+  // 编辑弹窗
+  var editingId = null;
+  function openModal(id) {
+    editingId = id;
+    var tasks = loadTasks();
+    var task = null;
+    for (var i = 0; i < tasks.length; i++) { if (tasks[i].id === id) { task = tasks[i]; break; } }
+    if (!task) return;
+    document.getElementById('modalTitle').textContent = '编辑任务';
+    document.getElementById('editTitle').value = task.title;
+    document.getElementById('editDesc').value = task.desc || '';
+    document.getElementById('editPriority').value = task.priority;
+    document.getElementById('editTag').value = task.tag;
+    document.getElementById('editStatus').value = task.status;
+    document.getElementById('editModal').classList.add('show');
+  }
+  function closeModal() { document.getElementById('editModal').classList.remove('show'); editingId = null; }
+  function saveCurrentTask() {
+    var tasks = loadTasks();
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].id === editingId) {
+        tasks[i].title = document.getElementById('editTitle').value.trim();
+        tasks[i].desc = document.getElementById('editDesc').value.trim();
+        tasks[i].priority = document.getElementById('editPriority').value;
+        tasks[i].tag = document.getElementById('editTag').value;
+        tasks[i].status = document.getElementById('editStatus').value;
+        break;
+      }
+    }
+    saveTasks(tasks); closeModal(); render(); showToast('已保存');
+  }
+  function deleteCurrentTask() {
+    if (!confirm('确定删除此任务？')) return;
+    var tasks = loadTasks();
+    var newTasks = [];
+    for (var i = 0; i < tasks.length; i++) { if (tasks[i].id !== editingId) newTasks.push(tasks[i]); }
+    saveTasks(newTasks); closeModal(); render(); showToast('已删除');
+  }
+  document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+  // 快速移动状态
+  function moveTask(id, newStatus) {
+    var tasks = loadTasks();
+    for (var i = 0; i < tasks.length; i++) {
+      if (tasks[i].id === id) { tasks[i].status = newStatus; break; }
+    }
+    saveTasks(tasks); render(); showToast('已移至' + STATUS_LABEL[newStatus]);
+  }
+
+  // 渲染
+  function render() {
+    var tasks = loadTasks();
+    var groups = { pending:[], progress:[], review:[], done:[] };
+    for (var i = 0; i < tasks.length; i++) { groups[tasks[i].status].push(tasks[i]); }
+
+    for (var si = 0; si < STATUS_LIST.length; si++) {
+      var s = STATUS_LIST[si];
+      var list = groups[s];
+      var containerId = 'list' + s.charAt(0).toUpperCase() + s.slice(1);
+      var container = document.getElementById(containerId);
+      document.getElementById('count' + s.charAt(0).toUpperCase() + s.slice(1)).textContent = list.length;
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="empty-col">暂无任务</div>';
+        continue;
+      }
+
+      // 排序：high优先在前
+      list.sort(function(a,b) { var p={high:0,mid:1,low:2}; return (p[a.priority]||1)-(p[b.priority]||1); });
+
+      var html = '';
+      for (var j = 0; j < list.length; j++) {
+        var t = list[j];
+        // 快捷移动按钮
+        var moveBtns = '';
+        if (s === 'pending') moveBtns = '<button onclick="event.stopPropagation();moveTask('+t.id+',\'progress\')" title="开始">▶</button>';
+        else if (s === 'progress') moveBtns = '<button onclick="event.stopPropagation();moveTask('+t.id+',\'review\')" title="提交验收">▶</button>';
+        else if (s === 'review') moveBtns = '<button onclick="event.stopPropagation();moveTask('+t.id+',\'done\')" title="完成">▶</button>';
+        else moveBtns = '<button onclick="event.stopPropagation();moveTask('+t.id+',\'pending\')" title="重新打开">↩</button>';
+
+        html += '<div class="card priority-'+t.priority+'" onclick="openModal('+t.id+')">'
+          +'<div class="card-title">'+t.title+'</div>'
+          +(t.desc ? '<div class="card-desc">'+t.desc+'</div>' : '')
+          +'<div class="card-meta">'
+          +'<span class="card-tag '+TAG_MAP[t.tag]+'">'+TAG_LABEL[t.tag]+'</span>'
+          +'<div class="card-actions">'+moveBtns+'</div>'
+          +'</div></div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // 顶栏统计
+    document.getElementById('statTotal').textContent = tasks.length;
+    document.getElementById('statPending').textContent = groups.pending.length;
+    document.getElementById('statProgress').textContent = groups.progress.length;
+    document.getElementById('statDone').textContent = groups.done.length;
+
+    // 日期
+    var now = new Date();
+    document.getElementById('dateStr').textContent = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日 星期'+['日','一','二','三','四','五','六'][now.getDay()];
+  }
+
+  render();
+</script>
+</body>
+</html>
