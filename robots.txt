@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lverlyly.github.io/work-tracker/sitemap.xml
