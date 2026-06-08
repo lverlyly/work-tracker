@@ -43,10 +43,12 @@
     .hero .contact-bar {
       display:inline-flex; gap:20px; background:rgba(255,255,255,.1); border-radius:40px;
       padding:12px 28px; font-size:14px; position:relative; backdrop-filter:blur(4px);
+      align-items:center;
     }
     .hero .contact-bar a { color:#fff; text-decoration:none; }
     .hero .contact-bar .label { opacity:.7; margin-right:4px; }
     .hero .contact-bar .val { font-weight:700; }
+    .hero .contact-bar .qr-img { width:80px; height:80px; border-radius:6px; margin-top:4px; }
 
     /* ===== 筛选栏 ===== */
     .filter-bar {
@@ -54,7 +56,8 @@
       position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.04);
     }
     .filter-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .filter-group { display:flex; gap:6px; flex-wrap:wrap; }
+    .filter-group { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+    .filter-sep { color:#d5dae3; font-size:13px; margin:0 4px; }
     .filter-btn {
       background:#f5f6fa; border:1px solid transparent; border-radius:20px; padding:6px 14px;
       font-size:13px; cursor:pointer; font-family:inherit; color:#7f8c9b;
@@ -62,6 +65,9 @@
     }
     .filter-btn:hover { background:#eef0ff; color:#4f6ef7; }
     .filter-btn.active { background:#4f6ef7; color:#fff; border-color:#4f6ef7; }
+    .filter-btn-hot { background:#fef0f0; color:#f56c6c; border-color:transparent; }
+    .filter-btn-hot:hover { background:#fde2e2; color:#f56c6c; }
+    .filter-btn-hot.active { background:#f56c6c; color:#fff; border-color:#f56c6c; }
     .filter-search {
       margin-left:auto; border:1.5px solid #e8ecf1; border-radius:20px; padding:8px 16px;
       font-size:13px; font-family:inherit; outline:none; width:180px; color:#1a1a2e;
@@ -157,7 +163,9 @@
       text-align:center; color:#fff; margin-top:16px;
     }
     .modal-content .contact-box .phone { font-size:24px; font-weight:800; margin:8px 0; }
+    .modal-content .contact-box .phone a { color:#fff; text-decoration:none; }
     .modal-content .contact-box .wechat { font-size:13px; opacity:.85; }
+    .modal-content .contact-box .qr-img { width:120px; height:120px; border-radius:8px; margin:8px auto; display:block; }
 
     /* ===== SEO Footer ===== */
     .seo-footer {
@@ -184,24 +192,15 @@
 
 <!-- Hero -->
 <div class="hero">
-  <h1>深圳<span>宝安·南山</span><br>写字楼真实房源</h1>
-  <div class="subtitle">数据来源租天下 · 真实楼盘 · 免费带看</div>
-  <div class="contact-bar">
-    <a href="tel:"><span class="label">电话</span><span class="val">咨询热线</span></a>
-    <a href="javascript:void(0)"><span class="label">微信</span><span class="val">扫码咨询</span></a>
-  </div>
+  <h1 id="heroTitle"></h1>
+  <div class="subtitle" id="heroSubtitle"></div>
+  <div class="contact-bar" id="heroContactBar"></div>
 </div>
 
 <!-- 筛选栏 -->
 <div class="filter-bar">
   <div class="filter-inner">
-    <div class="filter-group" id="areaFilter">
-      <button class="filter-btn active" data-val="all">全部区域</button>
-      <button class="filter-btn" data-val="qianhai">前海</button>
-      <button class="filter-btn" data-val="baoan-center">宝安中心</button>
-      <button class="filter-btn" data-val="xixiang">西乡</button>
-      <button class="filter-btn" data-val="nanshan-tech">南山科技园</button>
-    </div>
+    <div class="filter-group" id="areaFilter"></div>
     <input type="text" class="filter-search" id="searchInput" placeholder="搜索楼盘名称...">
   </div>
 </div>
@@ -216,9 +215,9 @@
 <!-- SEO Footer -->
 <div class="seo-footer">
   <div class="seo-inner">
-    <h4>深圳宝安南山写字楼租赁服务</h4>
-    <p>我们专注深圳宝安区、南山区写字楼办公室租赁，覆盖前海、宝安中心、西乡、南山科技园等核心商务板块。真实房源，实地拍摄，无论您是初创企业还是成熟公司，我们都能为您匹配最合适的办公空间。</p>
-    <p>热门楼盘：华润前海金融中心、前海科兴科学园、龙光世纪大厦、南山云科技大厦等。专业经纪人一对一服务，从选址到签约全程跟进，让您省心省力找到理想办公室。</p>
+    <h4 id="footerTitle"></h4>
+    <p id="footerDesc"></p>
+    <p id="footerDesc2"></p>
     <p class="footer-contact">联系电话 / 微信咨询，欢迎随时联系看房</p>
   </div>
 </div>
@@ -234,6 +233,41 @@
 
 <script src="data.js"></script>
 <script>
+// ========== 初始化页面文案 ==========
+document.getElementById('heroTitle').innerHTML = siteConfig.heroTitle + '<span>' + siteConfig.heroHighlight + '</span>';
+document.getElementById('heroSubtitle').textContent = siteConfig.heroSubtitle;
+
+// Hero联系栏
+var contactHtml = '<a href="tel:' + siteConfig.phone + '"><span class="label">电话</span><span class="val">' + siteConfig.phone + '</span></a>';
+if (siteConfig.wechatQrImg) {
+  contactHtml += '<a href="javascript:void(0)"><span class="label">微信</span><img class="qr-img" src="' + siteConfig.wechatQrImg + '" alt="微信二维码"></a>';
+} else {
+  contactHtml += '<a href="javascript:void(0)"><span class="label">微信</span><span class="val">扫码咨询</span></a>';
+}
+document.getElementById('heroContactBar').innerHTML = contactHtml;
+
+// 底部文案
+document.getElementById('footerTitle').textContent = siteConfig.footerTitle;
+document.getElementById('footerDesc').textContent = siteConfig.footerDesc;
+document.getElementById('footerDesc2').textContent = siteConfig.footerDesc2;
+
+// ========== 动态生成筛选按钮 ==========
+var areaLabels = {};
+var filterBarHtml = '<button class="filter-btn active" data-val="all">全部区域</button>';
+filterBarHtml += '<span class="filter-sep">|</span>';
+var hotAreas = [];
+for (var ai = 0; ai < siteConfig.areas.length; ai++) {
+  var area = siteConfig.areas[ai];
+  areaLabels[area.key] = area.label;
+  if (area.hot) {
+    hotAreas.push(area);
+  }
+}
+for (var hi = 0; hi < hotAreas.length; hi++) {
+  filterBarHtml += '<button class="filter-btn filter-btn-hot" data-val="' + hotAreas[hi].key + '">' + hotAreas[hi].label + '</button>';
+}
+document.getElementById('areaFilter').innerHTML = filterBarHtml;
+
 // ========== 筛选 & 分页 ==========
 var PAGE_SIZE = 12;
 var currentPage = 1;
@@ -248,6 +282,8 @@ function getFiltered() {
     if (searchText && p.name.indexOf(searchText) < 0 && p.address.indexOf(searchText) < 0) continue;
     list.push(p);
   }
+  // 按 updatedAt 降序排列
+  list.sort(function(a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
   return list;
 }
 
@@ -269,8 +305,6 @@ function renderList() {
   var pageData = filtered.slice(start, start + PAGE_SIZE);
 
   document.getElementById('resultInfo').innerHTML = '共 <strong>' + total + '</strong> 个房源';
-
-  var areaLabels = { 'qianhai':'前海','baoan-center':'宝安中心','xixiang':'西乡','nanshan-tech':'南山科技园' };
 
   var html = '';
   for (var i = 0; i < pageData.length; i++) {
@@ -321,7 +355,6 @@ function showDetail(idx) {
   var p = filtered[start + idx];
   if (!p) return;
 
-  var areaLabels = { 'qianhai':'前海','baoan-center':'宝安中心','xixiang':'西乡','nanshan-tech':'南山科技园' };
   var areaLabel = areaLabels[p.area] || '';
 
   var hlHtml = '';
@@ -339,6 +372,16 @@ function showDetail(idx) {
   // modal hero with image
   document.getElementById('modalHero').innerHTML = '<img src="'+p.img+'" alt="'+p.name+'" onerror="this.parentElement.innerHTML=\'<h2>'+p.name+'</h2>\'">';
 
+  // contact box: phone from siteConfig
+  var contactBoxHtml = '<div>专业经纪人 · 一对一服务</div>'
+    +'<div class="phone"><a href="tel:'+siteConfig.phone+'">'+siteConfig.phone+'</a></div>';
+  if (siteConfig.wechatQrImg) {
+    contactBoxHtml += '<img class="qr-img" src="'+siteConfig.wechatQrImg+'" alt="微信二维码">'
+      +'<div class="wechat">扫码添加微信，随时预约看房</div>';
+  } else {
+    contactBoxHtml += '<div class="wechat">微信同号，随时预约看房</div>';
+  }
+
   document.getElementById('modalContent').innerHTML =
     '<h2 style="font-size:20px;font-weight:700;margin-bottom:12px;">'+p.name+'</h2>'
     +'<div class="rent-big">'+rentDisplay+'</div>'
@@ -354,11 +397,7 @@ function showDetail(idx) {
     +'<div class="info-cell"><div class="lbl">楼层数</div><div class="val">'+p.floors+'</div></div>'
     +'</div>'
     +'<div class="highlights"><h4>楼盘亮点</h4><ul>'+hlHtml+'</ul></div>'
-    +'<div class="contact-box">'
-    +'<div>专业经纪人 · 一对一服务</div>'
-    +'<div class="phone">'+p.contact+'</div>'
-    +'<div class="wechat">微信同号，随时预约看房</div>'
-    +'</div>';
+    +'<div class="contact-box">'+contactBoxHtml+'</div>';
 
   document.getElementById('detailModal').classList.add('show');
 }

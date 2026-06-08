@@ -45,6 +45,14 @@
     }
     .admin-header h1 { font-size:18px; font-weight:700; }
     .admin-header .actions { display:flex; gap:10px; }
+    .admin-tabs { display:flex; gap:0; margin-bottom:0; }
+    .admin-tab {
+      padding:8px 18px; border:1.5px solid #e8ecf1; border-bottom:none; border-radius:8px 8px 0 0;
+      font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; background:#f5f6fa; color:#7f8c9b;
+    }
+    .admin-tab.active { background:#fff; color:#4f6ef7; border-color:#4f6ef7; border-bottom:1px solid #fff; margin-bottom:-1px; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
     .btn {
       padding:8px 18px; border:none; border-radius:8px; font-size:13px; font-weight:600;
       cursor:pointer; font-family:inherit; transition:all .15s;
@@ -176,14 +184,67 @@
 <!-- 管理后台 -->
 <div class="admin" id="adminPage">
   <div class="admin-header">
-    <h1>房源管理</h1>
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="props">楼盘管理</button>
+      <button class="admin-tab" data-tab="settings">站点设置</button>
+    </div>
     <div class="actions">
-      <button class="btn btn-outline" id="addBtn">+ 新增楼盘</button>
       <button class="btn btn-outline" id="logoutBtn">退出</button>
     </div>
   </div>
   <div class="admin-body">
-    <div class="prop-list" id="propList"></div>
+    <!-- 楼盘管理 -->
+    <div class="tab-content active" id="tabProps">
+      <div style="margin-bottom:12px;"><button class="btn btn-primary" id="addBtn">+ 新增楼盘</button></div>
+      <div class="prop-list" id="propList"></div>
+    </div>
+    <!-- 站点设置 -->
+    <div class="tab-content" id="tabSettings">
+      <div class="form-group">
+        <label>页面标题（高亮部分）</label>
+        <input type="text" id="sHeroTitle" placeholder="如：深圳宝安·南山">
+      </div>
+      <div class="form-group">
+        <label>标题高亮文字</label>
+        <input type="text" id="sHeroHighlight" placeholder="如：写字楼真实房源">
+      </div>
+      <div class="form-group">
+        <label>副标题</label>
+        <input type="text" id="sHeroSubtitle" placeholder="如：真实楼盘 · 免费带看 · 一对一服务">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>联系电话</label>
+          <input type="text" id="sPhone" placeholder="如：13500000000">
+        </div>
+        <div class="form-group">
+          <label>微信二维码图片</label>
+          <div class="img-upload-area" id="qrUploadArea" style="padding:12px;">
+            <div class="upload-hint" id="qrUploadHint">点击上传二维码<small>建议200x200以上</small></div>
+            <input type="file" accept="image/*" id="qrFileInput">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>底部标题</label>
+        <input type="text" id="sFooterTitle" placeholder="如：深圳宝安南山写字楼租赁服务">
+      </div>
+      <div class="form-group">
+        <label>底部描述1</label>
+        <textarea id="sFooterDesc" rows="3" placeholder="主要介绍文字"></textarea>
+      </div>
+      <div class="form-group">
+        <label>底部描述2</label>
+        <textarea id="sFooterDesc2" rows="2" placeholder="补充说明"></textarea>
+      </div>
+      <div class="form-group">
+        <label>区域列表（每行一个，格式：key:名称:hot，hot表示热门）</label>
+        <textarea id="sAreas" rows="4" placeholder="qianhai:前海:hot&#10;baoan-center:宝安中心:hot&#10;xixiang:西乡:hot&#10;nanshan-tech:南山科技园:hot"></textarea>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-primary" id="saveSettingsBtn">保存设置</button>
+      </div>
+    </div>
   </div>
   <div class="publish-bar">
     <div class="status" id="pubStatus">暂无修改</div>
@@ -292,8 +353,10 @@ var GITHUB_TOKEN = '';
 var GITHUB_REPO = 'lverlyly/work-tracker';
 var GITHUB_BRANCH = 'main';
 var STORAGE_KEY = 'office_properties';
+var CONFIG_KEY = 'office_siteconfig';
 var HAS_CHANGES = false;
 var pendingImages = {};
+var pendingQrImage = null;
 var editingIndex = -1;
 var areaLabels = {'qianhai':'前海','baoan-center':'宝安中心','xixiang':'西乡','nanshan-tech':'南山科技园'};
 
@@ -325,6 +388,37 @@ function savePropList(list) {
   markChanged();
 }
 
+var defaultSiteConfig = {
+  heroTitle: '深圳宝安·南山',
+  heroHighlight: '写字楼真实房源',
+  heroSubtitle: '真实楼盘 · 免费带看 · 一对一服务',
+  footerTitle: '深圳宝安南山写字楼租赁服务',
+  footerDesc: '我们专注深圳宝安区、南山区写字楼办公室租赁，覆盖前海、宝安中心、西乡、南山科技园等核心商务板块。真实房源，实地拍摄，无论您是初创企业还是成熟公司，我们都能为您匹配最合适的办公空间。',
+  footerDesc2: '专业经纪人一对一服务，从选址到签约全程跟进，让您省心省力找到理想办公室。',
+  phone: '13500000000',
+  wechatQrImg: '',
+  areas: [
+    {key: 'qianhai', label: '前海', hot: true},
+    {key: 'baoan-center', label: '宝安中心', hot: true},
+    {key: 'xixiang', label: '西乡', hot: true},
+    {key: 'nanshan-tech', label: '南山科技园', hot: true}
+  ]
+};
+
+function loadSiteConfig() {
+  var saved = localStorage.getItem(CONFIG_KEY);
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) {}
+  }
+  return JSON.parse(JSON.stringify(defaultSiteConfig));
+}
+
+function saveSiteConfig(cfg) {
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+  markChanged();
+}
+
+var siteConfig = loadSiteConfig();
 var properties = loadProperties();
 
 // ========== Toast ==========
@@ -488,6 +582,7 @@ function saveEdit() {
     property: document.getElementById('fProp').value.trim() || '面议',
     floors: document.getElementById('fFloors').value.trim() || '面议',
     contact: document.getElementById('fContact').value.trim() || '13500000000',
+    updatedAt: Date.now(),
     _imgPending: false
   };
 
@@ -544,19 +639,21 @@ function publishAll() {
   btn.disabled = true;
   btn.textContent = '发布中...';
 
-  // 先上传待处理的图片
+  // 先上传待处理的图片和微信二维码
   uploadPendingImages(0, function() {
-    // 所有图片上传完后，推送data.js
-    pushDataJs(function(err) {
-      if (err) {
-        showToast('发布失败：' + err, 'error');
-        btn.disabled = false;
-        btn.textContent = '发布到线上';
-      } else {
-        markPublished();
-        showToast('发布成功！几秒后线上更新', 'success');
-        btn.textContent = '发布到线上';
-      }
+    uploadQrImage(function() {
+      // 所有图片上传完后，推送data.js
+      pushDataJs(function(err) {
+        if (err) {
+          showToast('发布失败：' + err, 'error');
+          btn.disabled = false;
+          btn.textContent = '发布到线上';
+        } else {
+          markPublished();
+          showToast('发布成功！几秒后线上更新', 'success');
+          btn.textContent = '发布到线上';
+        }
+      });
     });
   });
 }
@@ -613,10 +710,63 @@ function uploadPendingImages(index, callback) {
   }));
 }
 
+// 上传微信二维码到GitHub
+function uploadQrImage(callback) {
+  if (!siteConfig._qrPending || !siteConfig.wechatQrImg || siteConfig.wechatQrImg.indexOf('data:') !== 0) {
+    callback();
+    return;
+  }
+  var base64Data = siteConfig.wechatQrImg;
+  var parts = base64Data.split(',');
+  var mimeType = parts[0].match(/:(.*?);/);
+  var ext = 'jpg';
+  if (mimeType && mimeType[1]) {
+    if (mimeType[1] === 'image/png') ext = 'png';
+  }
+  var rawBase64 = parts[1];
+  var filename = 'images/wechat_qr.' + ext;
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('PUT', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + filename);
+  xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function() {
+    if (xhr.status === 201 || xhr.status === 200) {
+      siteConfig.wechatQrImg = filename;
+      siteConfig._qrPending = false;
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(siteConfig));
+    }
+    callback();
+  };
+  xhr.onerror = function() { callback(); };
+  xhr.send(JSON.stringify({
+    message: '上传微信二维码',
+    branch: GITHUB_BRANCH,
+    content: rawBase64
+  }));
+}
+
 // 推送data.js数据文件
 function pushDataJs(callback) {
-  // 生成data.js内容
-  var content = 'var properties = [\n';
+  // 生成data.js内容 - 包含siteConfig和properties
+  var content = 'var siteConfig = {\n';
+  content += "  heroTitle: '" + (siteConfig.heroTitle || '').replace(/'/g, "\\'") + "',\n";
+  content += "  heroHighlight: '" + (siteConfig.heroHighlight || '').replace(/'/g, "\\'") + "',\n";
+  content += "  heroSubtitle: '" + (siteConfig.heroSubtitle || '').replace(/'/g, "\\'") + "',\n";
+  content += "  footerTitle: '" + (siteConfig.footerTitle || '').replace(/'/g, "\\'") + "',\n";
+  content += "  footerDesc: '" + (siteConfig.footerDesc || '').replace(/'/g, "\\'") + "',\n";
+  content += "  footerDesc2: '" + (siteConfig.footerDesc2 || '').replace(/'/g, "\\'") + "',\n";
+  content += "  phone: '" + (siteConfig.phone || '') + "',\n";
+  content += "  wechatQrImg: '" + (siteConfig.wechatQrImg || '') + "',\n";
+  content += '  areas: [\n';
+  for (var i = 0; i < siteConfig.areas.length; i++) {
+    var a = siteConfig.areas[i];
+    content += "    {key: '" + a.key + "', label: '" + (a.label || '').replace(/'/g, "\\'") + "', hot: " + (a.hot ? 'true' : 'false') + "}" + (i < siteConfig.areas.length - 1 ? ',' : '') + '\n';
+  }
+  content += '  ]\n';
+  content += '};\n\n';
+
+  content += 'var properties = [\n';
   for (var i = 0; i < properties.length; i++) {
     var p = properties[i];
     var tagsCode = '[';
@@ -631,7 +781,7 @@ function pushDataJs(callback) {
       if (j < p.highlights.length - 1) hlCode += ',';
     }
     hlCode += ']';
-    content += "  {name:'" + p.name.replace(/'/g, "\\'") + "',area:'" + p.area + "',rent:'" + (p.rent || '面议') + "',rentNote:'" + (p.rentNote || '').replace(/'/g, "\\'") + "',sizeRange:'" + (p.sizeRange || '').replace(/'/g, "\\'") + "',address:'" + (p.address || '').replace(/'/g, "\\'") + "',metro:'" + (p.metro || '').replace(/'/g, "\\'") + "',tags:" + tagsCode + ",highlights:" + hlCode + ",img:'" + (p.img || '') + "',developer:'" + (p.developer || '面议').replace(/'/g, "\\'") + "',property:'" + (p.property || '面议').replace(/'/g, "\\'") + "',floors:'" + (p.floors || '面议').replace(/'/g, "\\'") + "',contact:'" + (p.contact || '13500000000') + "'}" + (i < properties.length - 1 ? ',' : '') + '\n';
+    content += "  {name:'" + p.name.replace(/'/g, "\\'") + "',area:'" + p.area + "',rent:'" + (p.rent || '面议') + "',rentNote:'" + (p.rentNote || '').replace(/'/g, "\\'") + "',sizeRange:'" + (p.sizeRange || '').replace(/'/g, "\\'") + "',address:'" + (p.address || '').replace(/'/g, "\\'") + "',metro:'" + (p.metro || '').replace(/'/g, "\\'") + "',tags:" + tagsCode + ",highlights:" + hlCode + ",img:'" + (p.img || '') + "',developer:'" + (p.developer || '面议').replace(/'/g, "\\'") + "',property:'" + (p.property || '面议').replace(/'/g, "\\'") + "',floors:'" + (p.floors || '面议').replace(/'/g, "\\'") + "',contact:'" + (p.contact || '13500000000') + "',updatedAt:" + (p.updatedAt || Date.now()) + "}" + (i < properties.length - 1 ? ',' : '') + '\n';
   }
   content += '];\n';
 
@@ -716,6 +866,92 @@ document.getElementById('editSaveBtn').addEventListener('click', saveEdit);
 document.getElementById('pubBtn').addEventListener('click', publishAll);
 document.getElementById('editOverlay').addEventListener('click', function(e) {
   if (e.target === this) closeEdit();
+});
+
+// ========== Tab切换 ==========
+document.querySelector('.admin-tabs').addEventListener('click', function(e) {
+  var tab = e.target;
+  if (!tab.getAttribute('data-tab')) return;
+  var tabName = tab.getAttribute('data-tab');
+  // 切换tab按钮
+  var tabs = document.querySelectorAll('.admin-tab');
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+  tab.classList.add('active');
+  // 切换内容
+  var contents = document.querySelectorAll('.tab-content');
+  for (var i = 0; i < contents.length; i++) contents[i].classList.remove('active');
+  document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+  // 切到设置时加载当前配置
+  if (tabName === 'settings') loadSettingsForm();
+});
+
+// ========== 站点设置 ==========
+function loadSettingsForm() {
+  document.getElementById('sHeroTitle').value = siteConfig.heroTitle || '';
+  document.getElementById('sHeroHighlight').value = siteConfig.heroHighlight || '';
+  document.getElementById('sHeroSubtitle').value = siteConfig.heroSubtitle || '';
+  document.getElementById('sPhone').value = siteConfig.phone || '';
+  document.getElementById('sFooterTitle').value = siteConfig.footerTitle || '';
+  document.getElementById('sFooterDesc').value = siteConfig.footerDesc || '';
+  document.getElementById('sFooterDesc2').value = siteConfig.footerDesc2 || '';
+  // 区域列表
+  var areasText = '';
+  for (var i = 0; i < siteConfig.areas.length; i++) {
+    var a = siteConfig.areas[i];
+    areasText += a.key + ':' + a.label + (a.hot ? ':hot' : '') + '\n';
+  }
+  document.getElementById('sAreas').value = areasText.trim();
+  // 微信二维码预览
+  var qrHint = document.getElementById('qrUploadHint');
+  if (siteConfig.wechatQrImg && siteConfig.wechatQrImg.indexOf('data:') !== 0) {
+    qrHint.innerHTML = '<img src="' + siteConfig.wechatQrImg + '" alt="二维码" style="max-height:80px;"><small>点击重新上传</small>';
+  } else if (siteConfig.wechatQrImg && siteConfig.wechatQrImg.indexOf('data:') === 0) {
+    qrHint.innerHTML = '<img src="' + siteConfig.wechatQrImg + '" alt="二维码" style="max-height:80px;"><small>已选新图片，点击重新上传</small>';
+  } else {
+    qrHint.innerHTML = '点击上传二维码<small>建议200x200以上</small>';
+  }
+}
+
+// 微信二维码上传
+document.getElementById('qrFileInput').addEventListener('change', function() {
+  if (!this.files || !this.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    pendingQrImage = e.target.result;
+    document.getElementById('qrUploadHint').innerHTML = '<img src="' + e.target.result + '" alt="二维码" style="max-height:80px;"><small>已选择新图片，保存时生效</small>';
+  };
+  reader.readAsDataURL(this.files[0]);
+});
+
+document.getElementById('saveSettingsBtn').addEventListener('click', function() {
+  siteConfig.heroTitle = document.getElementById('sHeroTitle').value.trim();
+  siteConfig.heroHighlight = document.getElementById('sHeroHighlight').value.trim();
+  siteConfig.heroSubtitle = document.getElementById('sHeroSubtitle').value.trim();
+  siteConfig.phone = document.getElementById('sPhone').value.trim();
+  siteConfig.footerTitle = document.getElementById('sFooterTitle').value.trim();
+  siteConfig.footerDesc = document.getElementById('sFooterDesc').value.trim();
+  siteConfig.footerDesc2 = document.getElementById('sFooterDesc2').value.trim();
+  // 解析区域列表
+  var areasText = document.getElementById('sAreas').value.trim();
+  var newAreas = [];
+  var lines = areasText.split('\n');
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+    var parts = line.split(':');
+    if (parts.length >= 2) {
+      newAreas.push({key: parts[0].trim(), label: parts[1].trim(), hot: parts.length > 2 && parts[2].trim() === 'hot'});
+    }
+  }
+  if (newAreas.length > 0) siteConfig.areas = newAreas;
+  // 微信二维码
+  if (pendingQrImage) {
+    siteConfig.wechatQrImg = pendingQrImage;
+    siteConfig._qrPending = true;
+    pendingQrImage = null;
+  }
+  saveSiteConfig(siteConfig);
+  showToast('设置已保存', 'success');
 });
 
 // 初始化localStorage
