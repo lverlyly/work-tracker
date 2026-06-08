@@ -620,10 +620,19 @@ function publishAll() {
     showToast('请先输入GitHub发布令牌才能发布', 'error');
     return;
   }
+  if (GITHUB_TOKEN.indexOf('ghp_') !== 0) {
+    showToast('发布令牌格式不对，应以ghp_开头', 'error');
+    return;
+  }
+
+  // 发布前确认
+  var confirmMsg = '确认发布到线上？\n\n电话: ' + siteConfig.phone + '\n楼盘数: ' + properties.length;
+  if (!confirm(confirmMsg)) return;
 
   var btn = document.getElementById('pubBtn');
   btn.disabled = true;
   btn.textContent = '发布中...';
+  showToast('正在发布，请稍候...', '');
 
   uploadPendingImages(0, function() {
     uploadQrImage(function() {
@@ -810,11 +819,16 @@ function doPushDataJs(content, sha, callback) {
       callback(null);
     } else {
       var msg = 'HTTP ' + xhr.status;
-      try { var r = JSON.parse(xhr.responseText); if (r.message) msg += ': ' + r.message; } catch(e) {}
+      try {
+        var r = JSON.parse(xhr.responseText);
+        if (r.message) msg += ': ' + r.message;
+      } catch(e) {
+        msg += ': ' + xhr.responseText.substring(0, 100);
+      }
       callback(msg);
     }
   };
-  xhr.onerror = function() { callback('网络错误'); };
+  xhr.onerror = function() { callback('网络错误，请检查网络连接'); };
   xhr.send(JSON.stringify(payload));
 }
 
