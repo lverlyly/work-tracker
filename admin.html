@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>房源管理后台</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:#f0f2f5; color:#1a1a2e; -webkit-font-smoothing:antialiased;
+    }
+
+    /* ===== 登录页 ===== */
+    .login-wrap {
+      min-height:100vh; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    }
+    .login-box {
+      background:#fff; border-radius:16px; padding:40px; width:90%; max-width:360px;
+      box-shadow:0 20px 60px rgba(0,0,0,.3); text-align:center;
+    }
+    .login-box h2 { font-size:22px; margin-bottom:8px; }
+    .login-box .sub { font-size:13px; color:#7f8c9b; margin-bottom:24px; }
+    .login-box input[type="password"] {
+      width:100%; border:1.5px solid #e8ecf1; border-radius:10px; padding:12px 16px;
+      font-size:15px; outline:none; font-family:inherit; text-align:center; letter-spacing:4px;
+    }
+    .login-box input[type="password"]:focus { border-color:#4f6ef7; }
+    .login-box .login-btn {
+      width:100%; margin-top:16px; padding:12px; border:none; border-radius:10px;
+      background:#4f6ef7; color:#fff; font-size:16px; font-weight:600; cursor:pointer;
+      font-family:inherit;
+    }
+    .login-box .login-btn:hover { background:#3d5bd6; }
+    .login-box .err { color:#f56c6c; font-size:12px; margin-top:8px; display:none; }
+
+    /* ===== 管理后台 ===== */
+    .admin { display:none; }
+    .admin-header {
+      background:#fff; padding:16px 24px; border-bottom:1px solid #e8ecf1;
+      display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100;
+    }
+    .admin-header h1 { font-size:18px; font-weight:700; }
+    .admin-header .actions { display:flex; gap:10px; }
+    .btn {
+      padding:8px 18px; border:none; border-radius:8px; font-size:13px; font-weight:600;
+      cursor:pointer; font-family:inherit; transition:all .15s;
+    }
+    .btn-primary { background:#4f6ef7; color:#fff; }
+    .btn-primary:hover { background:#3d5bd6; }
+    .btn-success { background:#67c23a; color:#fff; }
+    .btn-success:hover { background:#5daf34; }
+    .btn-danger { background:#f56c6c; color:#fff; }
+    .btn-danger:hover { background:#dd5a5a; }
+    .btn-outline { background:#fff; color:#7f8c9b; border:1.5px solid #e8ecf1; }
+    .btn-outline:hover { border-color:#4f6ef7; color:#4f6ef7; }
+    .btn-sm { padding:5px 12px; font-size:12px; }
+    .btn:disabled { opacity:.5; pointer-events:none; }
+
+    .admin-body { max-width:900px; margin:0 auto; padding:20px; }
+
+    /* 楼盘列表 */
+    .prop-list { display:flex; flex-direction:column; gap:12px; }
+    .prop-item {
+      background:#fff; border-radius:12px; padding:16px; display:flex; gap:16px;
+      align-items:center; box-shadow:0 1px 4px rgba(0,0,0,.04); transition:box-shadow .15s;
+    }
+    .prop-item:hover { box-shadow:0 4px 12px rgba(0,0,0,.08); }
+    .prop-thumb {
+      width:80px; height:60px; border-radius:8px; overflow:hidden; flex-shrink:0;
+      background:linear-gradient(135deg,#e8ecf1,#d5dae3); display:flex; align-items:center; justify-content:center;
+    }
+    .prop-thumb img { width:100%; height:100%; object-fit:cover; }
+    .prop-thumb .no-img { font-size:10px; color:#b0b8c4; }
+    .prop-info { flex:1; min-width:0; }
+    .prop-info h3 { font-size:15px; font-weight:600; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .prop-info .meta { font-size:12px; color:#7f8c9b; display:flex; gap:12px; flex-wrap:wrap; }
+    .prop-info .meta span { white-space:nowrap; }
+    .prop-actions { display:flex; gap:6px; flex-shrink:0; }
+
+    /* 编辑弹窗 */
+    .overlay {
+      position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5);
+      z-index:1000; display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity .2s;
+    }
+    .overlay.show { opacity:1; pointer-events:auto; }
+    .edit-box {
+      background:#fff; border-radius:16px; width:94%; max-width:560px; max-height:90vh;
+      overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2);
+    }
+    .edit-header {
+      padding:20px 24px 0; display:flex; align-items:center; justify-content:space-between;
+    }
+    .edit-header h2 { font-size:18px; font-weight:700; }
+    .edit-close {
+      background:none; border:none; font-size:24px; cursor:pointer; color:#7f8c9b; padding:4px;
+    }
+    .edit-body { padding:20px 24px 24px; }
+    .form-group { margin-bottom:16px; }
+    .form-group label {
+      display:block; font-size:12px; font-weight:600; color:#7f8c9b; margin-bottom:6px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width:100%; border:1.5px solid #e8ecf1; border-radius:8px; padding:10px 12px;
+      font-size:14px; font-family:inherit; outline:none; color:#1a1a2e;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color:#4f6ef7;
+    }
+    .form-group textarea { resize:vertical; min-height:60px; }
+    .form-row { display:flex; gap:12px; }
+    .form-row .form-group { flex:1; }
+    .img-upload-area {
+      border:2px dashed #e8ecf1; border-radius:12px; padding:24px; text-align:center;
+      cursor:pointer; transition:border-color .15s; position:relative; overflow:hidden;
+    }
+    .img-upload-area:hover { border-color:#4f6ef7; }
+    .img-upload-area img { width:100%; max-height:160px; object-fit:contain; border-radius:8px; }
+    .img-upload-area .upload-hint { font-size:13px; color:#b0b8c4; }
+    .img-upload-area .upload-hint small { display:block; font-size:11px; margin-top:4px; }
+    .img-upload-area input[type="file"] {
+      position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;
+    }
+
+    /* 发布状态 */
+    .publish-bar {
+      background:#fff; border-top:1px solid #e8ecf1; padding:12px 24px;
+      position:fixed; bottom:0; left:0; right:0; display:flex; align-items:center;
+      justify-content:space-between; z-index:50; box-shadow:0 -2px 8px rgba(0,0,0,.04);
+    }
+    .publish-bar .status { font-size:13px; color:#7f8c9b; }
+    .publish-bar .status .changed { color:#e6a23c; font-weight:600; }
+    .publish-bar .status .published { color:#67c23a; font-weight:600; }
+
+    /* 提示条 */
+    .toast {
+      position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-80px);
+      background:#1a1a2e; color:#fff; padding:12px 24px; border-radius:10px; font-size:14px;
+      font-weight:600; z-index:9999; transition:transform .3s; box-shadow:0 8px 24px rgba(0,0,0,.2);
+    }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+    .toast.success { background:#67c23a; }
+    .toast.error { background:#f56c6c; }
+
+    /* 响应式 */
+    @media (max-width:600px) {
+      .admin-header { flex-direction:column; gap:10px; }
+      .prop-item { flex-direction:column; align-items:flex-start; }
+      .prop-actions { width:100%; justify-content:flex-end; }
+      .form-row { flex-direction:column; gap:0; }
+      .edit-box { width:100%; max-width:100%; max-height:100vh; border-radius:0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 登录页 -->
+<div class="login-wrap" id="loginPage">
+    <div class="login-box">
+    <h2>房源管理后台</h2>
+    <div class="sub">请输入管理密码和发布令牌</div>
+    <input type="password" id="loginPwd" placeholder="管理密码" style="margin-bottom:10px;" autofocus>
+    <input type="password" id="loginToken" placeholder="GitHub发布令牌（ghp_开头）">
+    <div class="err" id="loginErr">密码错误，请重试</div>
+    <button class="login-btn" onclick="tryLogin()">进入后台</button>
+    <div style="margin-top:12px;font-size:11px;color:#b0b8c4;">发布令牌仅在本次会话中使用，不会保存</div>
+  </div>
+</div>
+
+<!-- 管理后台 -->
+<div class="admin" id="adminPage">
+  <div class="admin-header">
+    <h1>房源管理</h1>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="openEdit(-1)">+ 新增楼盘</button>
+      <button class="btn btn-outline" onclick="logout()">退出</button>
+    </div>
+  </div>
+  <div class="admin-body">
+    <div class="prop-list" id="propList"></div>
+  </div>
+  <div class="publish-bar">
+    <div class="status" id="pubStatus">暂无修改</div>
+    <button class="btn btn-success" id="pubBtn" onclick="publishAll()" disabled>发布到线上</button>
+  </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="overlay" id="editOverlay">
+  <div class="edit-box">
+    <div class="edit-header">
+      <h2 id="editTitle">编辑楼盘</h2>
+      <button class="edit-close" onclick="closeEdit()">&times;</button>
+    </div>
+    <div class="edit-body">
+      <div class="form-group">
+        <label>楼盘图片</label>
+        <div class="img-upload-area" id="uploadArea">
+          <div class="upload-hint" id="uploadHint">
+            点击上传图片
+            <small>建议宽度1080px以上，支持jpg/png</small>
+          </div>
+          <input type="file" accept="image/*" id="imgFileInput" onchange="onImgSelect(this)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>楼盘名称</label>
+        <input type="text" id="fName" placeholder="如：华润前海金融中心">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>区域</label>
+          <select id="fArea">
+            <option value="qianhai">前海</option>
+            <option value="baoan-center">宝安中心</option>
+            <option value="xixiang">西乡</option>
+            <option value="nanshan-tech">南山科技园</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>租金（元/㎡/月）</label>
+          <input type="text" id="fRent" placeholder="如：160-270 或 面议">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>租金说明</label>
+          <input type="text" id="fRentNote" placeholder="如：含税含物业">
+        </div>
+        <div class="form-group">
+          <label>面积范围（㎡）</label>
+          <input type="text" id="fSize" placeholder="如：160-5000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>详细地址</label>
+        <input type="text" id="fAddr" placeholder="如：前海自由贸易区梦海大道与桂湾四路交汇处">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>最近地铁</label>
+          <input type="text" id="fMetro" placeholder="如：5号线桂湾站">
+        </div>
+        <div class="form-group">
+          <label>联系电话</label>
+          <input type="text" id="fContact" placeholder="如：13500000000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>开发商</label>
+          <input type="text" id="fDev" placeholder="选填">
+        </div>
+        <div class="form-group">
+          <label>物业公司</label>
+          <input type="text" id="fProp" placeholder="选填">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>楼层数</label>
+        <input type="text" id="fFloors" placeholder="选填，如：53层">
+      </div>
+      <div class="form-group">
+        <label>标签（逗号分隔）</label>
+        <input type="text" id="fTags" placeholder="如：超甲级,近地铁,品牌开发商">
+      </div>
+      <div class="form-group">
+        <label>楼盘亮点（每行一条）</label>
+        <textarea id="fHighlights" rows="4" placeholder="每行一条亮点&#10;如：华润集团开发及管理&#10;249.4m超高层"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button class="btn btn-outline" onclick="closeEdit()">取消</button>
+        <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 配置 ==========
+var ADMIN_PWD = 'baoan2026';
+var GITHUB_TOKEN = '';
+var GITHUB_REPO = 'lverlyly/work-tracker';
+var GITHUB_BRANCH = 'main';
+var STORAGE_KEY = 'office_properties';
+var HAS_CHANGES = false;
+var pendingImages = {}; // {index: base64data}
+
+// ========== 初始数据 ==========
+var defaultProperties = [
+  {name:'前海华润金融中心',area:'qianhai',rent:'160-270',rentNote:'含税，可申请政府补贴60/40/20元/㎡',sizeRange:'160-5000',address:'前海自由贸易区梦海大道与桂湾四路交汇处',metro:'5号线桂湾站',tags:['超甲级','近地铁','品牌开发商','政府补贴'],highlights:['华润集团开发及管理，249.4m超高层','12.8米层高大堂，24部通力高速电梯','前海唯一万象城商业配套','可申请政府补贴60/40/20元/㎡','企业所得税15%优惠，总部扶持最高3000万'],img:'images/huarun-qianhai.jpg',developer:'华润集团',property:'华润物管',floors:'53层',contact:'13500000000'},
+  {name:'前海科兴科学园',area:'xixiang',rent:'80-128',rentNote:'含税含物业',sizeRange:'169-20000',address:'宝安区西乡银田路与兴业路交汇处',metro:'11号线碧海湾站A出口',tags:['甲级','近地铁','大面积','品牌开发商'],highlights:['正中集团倾力打造，甲级品质','约11米挑高大堂，冰蓄冷中央空调24h供冷','100:1超量停车位（2800个）','使用率高达70%-75%','180度一线山海景观'],img:'images/qianhai-kexing.jpg',developer:'正中集团',property:'深圳市正中企业服务有限公司',floors:'约30层',contact:'13500000000'},
+  {name:'龙光世纪大厦',area:'baoan-center',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'600-10000',address:'宝安区宝华路与兴华路交汇处',metro:'11号线桥头站C出口',tags:['近地铁','大面积','可分割'],highlights:['紧邻地铁11号线，串联宝中/南山/福田','靠近国际会展中心，享会展经济红利','规划高品质商务公寓和办公大厦','商业配套齐全'],img:'images/longguang-shiji.jpg',developer:'龙光集团',property:'面议',floors:'面议',contact:'13500000000'},
+  {name:'前海颐都大厦',area:'qianhai',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'南山区前海深港合作区妈湾片区',metro:'1号线/2号线',tags:['近地铁','可分割','前海政策'],highlights:['前海深港合作区核心位置','多条地铁及公交环绕','配备先进办公设施及高速网络','商业配套丰富','享前海政策红利'],img:'images/qianhai-yidu.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'},
+  {name:'华润置地大厦',area:'nanshan-tech',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'南山区深南大道与铜鼓路交界西北口',metro:'1号线高新园站',tags:['品牌开发商','近地铁','科技园核心'],highlights:['南山科技园核心区，华润品牌品质','地铁1/5/7号线多站覆盖','楼宇智能化系统，高效中央空调','高科技/金融/文创企业聚集'],img:'images/huarun-zhidi.jpg',developer:'华润置地',property:'华润物业',floors:'面议',contact:'13500000000'},
+  {name:'前海深港基金小镇',area:'qianhai',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'600-10000',address:'南山区桂湾四路',metro:'5号线桂湾站',tags:['金融专属','前海政策','独栋可冠名'],highlights:['前海深港合作区核心，毗邻香港','连接内地与香港金融市场的重要桥梁','建筑风格融合现代与传统','享前海先行先试改革红利'],img:'images/jijin-xiaozhen.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'},
+  {name:'中粮大悦城',area:'baoan-center',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'宝安区建安一路360号',metro:'5号线兴东站',tags:['品牌开发商','配套完善','可分割'],highlights:['宝安中心区核心位置','现代商业与办公空间融合','品牌组合+艺术展览+主题活动','商务餐饮与休闲娱乐设施丰富'],img:'images/zhongliang-dayuecheng.jpg',developer:'中粮集团',property:'面议',floors:'面议',contact:'13500000000'},
+  {name:'金环宇湾芯城',area:'xixiang',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-2000',address:'宝安区西乡铁仔路56号',metro:'1号线西乡站',tags:['科技园区','层高优势','可分割'],highlights:['国家高新区，科技产业园区','层高4.5-6米，空间灵活','聚集信息技术/生物医药/新能源企业','3栋建筑，总建面10.7万平','478个停车位，12台电梯'],img:'images/jinhuanyu-wanxincheng.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'},
+  {name:'南山云科技大厦',area:'nanshan-tech',rent:'面议',rentNote:'物业费33元/㎡/月（含空调）',sizeRange:'145-2000',address:'南山区留仙洞总部基地万科云城六期',metro:'13号线石鼓站（0距离）',tags:['地铁上盖','总部地标','品牌物业'],highlights:['234米留仙洞地标建筑','地铁13号线0距离无缝连接','整层最高使用率80%','37部品牌高速电梯','万科物业高端品质管理','楼下万科里商业MALL'],img:'images/nanshan-yunkeji.jpg',developer:'万科',property:'万科物业',floors:'53层',contact:'13500000000'},
+  {name:'科兴科学园',area:'nanshan-tech',rent:'面议',rentNote:'致电咨询专属优惠',sizeRange:'219-6000',address:'南山区科苑路15号',metro:'1号线高新园站/2号线科苑站',tags:['科技园标杆','近地铁','大面积'],highlights:['南山科技园核心地标','集聚AI/大数据/生物医药等高科技企业','智能楼宇系统+中央空调+高速网络','定期举办技术论坛和行业峰会','高端餐饮/酒店/购物中心配套齐全'],img:'images/kexing-kexueyuan.jpg',developer:'面议',property:'面议',floors:'面议',contact:'13500000000'}
+];
+
+// ========== 数据管理 ==========
+function loadProperties() {
+  var saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try { return JSON.parse(saved); } catch(e) {}
+  }
+  return JSON.parse(JSON.stringify(defaultProperties));
+}
+
+function saveProperties(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  markChanged();
+}
+
+var properties = loadProperties();
+
+// ========== 登录 ==========
+function tryLogin() {
+  var pwd = document.getElementById('loginPwd').value;
+  var token = document.getElementById('loginToken').value.trim();
+  if (pwd === ADMIN_PWD) {
+    GITHUB_TOKEN = token;
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('adminPage').style.display = 'block';
+    renderList();
+    if (!token) {
+      showToast('未输入发布令牌，编辑功能可用但无法发布到线上', 'error');
+    }
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+    document.getElementById('loginPwd').value = '';
+    document.getElementById('loginPwd').focus();
+  }
+}
+document.getElementById('loginPwd').addEventListener('keydown', function(e) {
+  if (e.keyCode === 13) tryLogin();
+});
+document.getElementById('loginToken').addEventListener('keydown', function(e) {
+  if (e.keyCode === 13) tryLogin();
+});
+
+function logout() {
+  document.getElementById('adminPage').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('loginPwd').value = '';
+}
+
+// ========== 列表渲染 ==========
+var areaLabels = {'qianhai':'前海','baoan-center':'宝安中心','xixiang':'西乡','nanshan-tech':'南山科技园'};
+
+function renderList() {
+  var html = '';
+  for (var i = 0; i < properties.length; i++) {
+    var p = properties[i];
+    var areaLabel = areaLabels[p.area] || p.area;
+    var rentLabel = p.rent === '面议' ? '面议' : p.rent + ' 元/㎡/月';
+    var imgHtml = p.img ? '<img src="'+p.img+'" alt="'+p.name+'">' : '<div class="no-img">无图</div>';
+
+    html += '<div class="prop-item">'
+      +'<div class="prop-thumb">'+imgHtml+'</div>'
+      +'<div class="prop-info">'
+      +'<h3>'+p.name+'</h3>'
+      +'<div class="meta">'
+      +'<span>'+areaLabel+'</span>'
+      +'<span>'+rentLabel+'</span>'
+      +'<span>'+p.metro+'</span>'
+      +'</div></div>'
+      +'<div class="prop-actions">'
+      +'<button class="btn btn-outline btn-sm" onclick="openEdit('+i+')">编辑</button>'
+      +'<button class="btn btn-danger btn-sm" onclick="deleteProp('+i+')">删除</button>'
+      +'</div></div>';
+  }
+  if (properties.length === 0) {
+    html = '<div style="text-align:center;padding:60px 20px;color:#b0b8c4;">暂无楼盘，点击右上角"新增楼盘"添加</div>';
+  }
+  document.getElementById('propList').innerHTML = html;
+}
+
+// ========== 编辑弹窗 ==========
+var editingIndex = -1; // -1 = 新增
+
+function openEdit(idx) {
+  editingIndex = idx;
+  var p = idx >= 0 ? properties[idx] : null;
+
+  document.getElementById('editTitle').textContent = p ? '编辑楼盘' : '新增楼盘';
+  document.getElementById('fName').value = p ? p.name : '';
+  document.getElementById('fArea').value = p ? p.area : 'qianhai';
+  document.getElementById('fRent').value = p ? p.rent : '';
+  document.getElementById('fRentNote').value = p ? p.rentNote : '';
+  document.getElementById('fSize').value = p ? p.sizeRange : '';
+  document.getElementById('fAddr').value = p ? p.address : '';
+  document.getElementById('fMetro').value = p ? p.metro : '';
+  document.getElementById('fContact').value = p ? p.contact : '13500000000';
+  document.getElementById('fDev').value = p ? p.developer : '';
+  document.getElementById('fProp').value = p ? p.property : '';
+  document.getElementById('fFloors').value = p ? p.floors : '';
+  document.getElementById('fTags').value = p ? p.tags.join(',') : '';
+  document.getElementById('fHighlights').value = p ? p.highlights.join('\n') : '';
+
+  // 图片预览
+  var uploadArea = document.getElementById('uploadArea');
+  var uploadHint = document.getElementById('uploadHint');
+  if (p && p.img) {
+    uploadHint.innerHTML = '<img src="'+p.img+'" alt="预览"><small>点击重新上传</small>';
+  } else {
+    uploadHint.innerHTML = '点击上传图片<small>建议宽度1080px以上，支持jpg/png</small>';
+  }
+  document.getElementById('imgFileInput').value = '';
+
+  document.getElementById('editOverlay').classList.add('show');
+}
+
+function closeEdit() {
+  document.getElementById('editOverlay').classList.remove('show');
+  editingIndex = -1;
+  pendingImages = {};
+}
+document.getElementById('editOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeEdit();
+});
+
+// 图片选择处理
+function onImgSelect(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var base64 = e.target.result;
+    // 预览
+    var uploadHint = document.getElementById('uploadHint');
+    uploadHint.innerHTML = '<img src="'+base64+'" alt="预览"><small>已选择新图片，保存时生效</small>';
+    // 暂存
+    pendingImages[editingIndex] = base64;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveEdit() {
+  var name = document.getElementById('fName').value.trim();
+  if (!name) { showToast('请输入楼盘名称', 'error'); return; }
+
+  var tagsStr = document.getElementById('fTags').value.trim();
+  var tags = tagsStr ? tagsStr.split(/[,，]/).filter(function(t){ return t.trim(); }) : [];
+
+  var highlightsStr = document.getElementById('fHighlights').value.trim();
+  var highlights = highlightsStr ? highlightsStr.split('\n').filter(function(h){ return h.trim(); }) : [];
+
+  var p = {
+    name: name,
+    area: document.getElementById('fArea').value,
+    rent: document.getElementById('fRent').value.trim() || '面议',
+    rentNote: document.getElementById('fRentNote').value.trim(),
+    sizeRange: document.getElementById('fSize').value.trim(),
+    address: document.getElementById('fAddr').value.trim(),
+    metro: document.getElementById('fMetro').value.trim(),
+    tags: tags,
+    highlights: highlights,
+    img: '',
+    developer: document.getElementById('fDev').value.trim() || '面议',
+    property: document.getElementById('fProp').value.trim() || '面议',
+    floors: document.getElementById('fFloors').value.trim() || '面议',
+    contact: document.getElementById('fContact').value.trim() || '13500000000'
+  };
+
+  // 处理图片
+  if (pendingImages[editingIndex]) {
+    // 新上传的图片，先用base64预览，发布时上传到GitHub
+    p.img = pendingImages[editingIndex];
+    p._imgPending = true;
+  } else if (editingIndex >= 0 && properties[editingIndex]) {
+    p.img = properties[editingIndex].img;
+    p._imgPending = properties[editingIndex]._imgPending || false;
+  }
+
+  if (editingIndex >= 0) {
+    properties[editingIndex] = p;
+  } else {
+    properties.push(p);
+  }
+
+  saveProperties(properties);
+  renderList();
+  closeEdit();
+  showToast('已保存', 'success');
+}
+
+function deleteProp(idx) {
+  if (!confirm('确定删除"' + properties[idx].name + '"？')) return;
+  properties.splice(idx, 1);
+  saveProperties(properties);
+  renderList();
+  showToast('已删除', 'success');
+}
+
+// ========== 变更追踪 ==========
+function markChanged() {
+  HAS_CHANGES = true;
+  document.getElementById('pubStatus').innerHTML = '<span class="changed">有未发布的修改</span>';
+  document.getElementById('pubBtn').disabled = false;
+}
+
+function markPublished() {
+  HAS_CHANGES = false;
+  document.getElementById('pubStatus').innerHTML = '<span class="published">已发布到线上</span>';
+  document.getElementById('pubBtn').disabled = true;
+}
+
+// ========== 发布到GitHub ==========
+function publishAll() {
+  if (!HAS_CHANGES) return;
+  if (!GITHUB_TOKEN) {
+    showToast('请先输入GitHub发布令牌才能发布', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('pubBtn');
+  btn.disabled = true;
+  btn.textContent = '发布中...';
+
+  // 步骤1：上传待处理的图片到GitHub
+  var imgUploads = [];
+  for (var i = 0; i < properties.length; i++) {
+    var p = properties[i];
+    if (p._imgPending && p.img && p.img.indexOf('data:') === 0) {
+      imgUploads.push(uploadImageToGithub(i, p.img));
+    }
+  }
+
+  Promise.all(imgUploads).then(function() {
+    // 步骤2：生成office.html内容并推送
+    return pushOfficeHtml();
+  }).then(function() {
+    markPublished();
+    showToast('发布成功！线上将在几秒内更新', 'success');
+    btn.textContent = '发布到线上';
+  }).catch(function(err) {
+    console.error('发布失败:', err);
+    showToast('发布失败：' + (err.message || err), 'error');
+    btn.disabled = false;
+    btn.textContent = '发布到线上';
+  });
+}
+
+function uploadImageToGithub(index, base64Data) {
+  return new Promise(function(resolve, reject) {
+    var parts = base64Data.split(',');
+    var mimeType = parts[0].match(/:(.*?);/);
+    var ext = 'jpg';
+    if (mimeType && mimeType[1]) {
+      if (mimeType[1] === 'image/png') ext = 'png';
+      else if (mimeType[1] === 'image/jpeg') ext = 'jpg';
+      else if (mimeType[1] === 'image/webp') ext = 'webp';
+    }
+    var rawBase64 = parts[1];
+    var timestamp = Date.now();
+    var filename = 'images/upload_' + timestamp + '_' + index + '.' + ext;
+    var githubPath = filename;
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('PUT', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + githubPath);
+    xhr.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = function() {
+      if (xhr.status === 201 || xhr.status === 200) {
+        var resp = JSON.parse(xhr.responseText);
+        var imgUrl = resp.content.download_url || resp.content.html_url;
+        // 更新properties中的img路径
+        properties[index].img = filename;
+        properties[index]._imgPending = false;
+        // 保存到localStorage
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
+        resolve(imgUrl);
+      } else {
+        reject(new Error('图片上传失败: HTTP ' + xhr.status));
+      }
+    };
+    xhr.onerror = function() { reject(new Error('网络错误')); };
+    xhr.send(JSON.stringify({
+      message: '上传图片: ' + filename,
+      branch: GITHUB_BRANCH,
+      content: rawBase64
+    }));
+  });
+}
+
+function pushOfficeHtml() {
+  return new Promise(function(resolve, reject) {
+    // 先获取当前office.html的SHA
+    var xhr1 = new XMLHttpRequest();
+    xhr1.open('GET', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/office.html?ref=' + GITHUB_BRANCH);
+    xhr1.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+    xhr1.setRequestHeader('Accept', 'application/vnd.github.v3+json');
+    xhr1.onload = function() {
+      if (xhr1.status !== 200) { reject(new Error('获取文件SHA失败')); return; }
+      var sha = JSON.parse(xhr1.responseText).sha;
+
+      // 生成新的office.html内容
+      var newContent = generateOfficeHtml();
+
+      // 推送到GitHub
+      var xhr2 = new XMLHttpRequest();
+      xhr2.open('PUT', 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/office.html');
+      xhr2.setRequestHeader('Authorization', 'token ' + GITHUB_TOKEN);
+      xhr2.setRequestHeader('Content-Type', 'application/json');
+      xhr2.onload = function() {
+        if (xhr2.status === 200 || xhr2.status === 201) {
+          resolve();
+        } else {
+          reject(new Error('推送office.html失败: HTTP ' + xhr2.status));
+        }
+      };
+      xhr2.onerror = function() { reject(new Error('网络错误')); };
+      xhr2.send(JSON.stringify({
+        message: '更新房源数据',
+        branch: GITHUB_BRANCH,
+        sha: sha,
+        content: btoa(unescape(encodeURIComponent(newContent)))
+      }));
+    };
+    xhr1.onerror = function() { reject(new Error('网络错误')); };
+    xhr1.send();
+  });
+}
+
+function generateOfficeHtml() {
+  // 生成properties的JS代码
+  var propsCode = '[\n';
+  for (var i = 0; i < properties.length; i++) {
+    var p = properties[i];
+    var tagsCode = '[';
+    for (var j = 0; j < p.tags.length; j++) {
+      tagsCode += "'" + p.tags[j].replace(/'/g, "\\'") + "'";
+      if (j < p.tags.length - 1) tagsCode += ',';
+    }
+    tagsCode += ']';
+    var hlCode = '[';
+    for (var j = 0; j < p.highlights.length; j++) {
+      hlCode += "'" + p.highlights[j].replace(/'/g, "\\'") + "'";
+      if (j < p.highlights.length - 1) hlCode += ',';
+    }
+    hlCode += ']';
+    propsCode += "    {name:'" + p.name.replace(/'/g, "\\'") + "',area:'" + p.area + "',rent:'" + (p.rent || '面议') + "',rentNote:'" + (p.rentNote || '').replace(/'/g, "\\'") + "',sizeRange:'" + (p.sizeRange || '').replace(/'/g, "\\'") + "',address:'" + (p.address || '').replace(/'/g, "\\'") + "',metro:'" + (p.metro || '').replace(/'/g, "\\'") + "',tags:" + tagsCode + ",highlights:" + hlCode + ",img:'" + (p.img || '') + "',developer:'" + (p.developer || '面议').replace(/'/g, "\\'") + "',property:'" + (p.property || '面议').replace(/'/g, "\\'") + "',floors:'" + (p.floors || '面议').replace(/'/g, "\\'") + "',contact:'" + (p.contact || '13500000000') + "'}" + (i < properties.length - 1 ? ',' : '') + '\n';
+  }
+  propsCode += '  ]';
+
+  return '<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <meta http-equiv="X-UA-Compatible" content="IE=edge">\n  <title>深圳宝安南山写字楼出租_办公室租赁_真实房源</title>\n  <meta name="description" content="深圳宝安南山区写字楼出租，真实房源直租，涵盖宝安中心、西乡、前海、南山科技园等区域，专业一对一服务，免费带看。">\n  <meta name="keywords" content="深圳写字楼出租,宝安写字楼,南山写字楼,办公室租赁,前海写字楼,宝安中心区写字楼,西乡写字楼">\n  <link rel="canonical" href="https://lverlyly.github.io/work-tracker/office.html">\n  <script type="application/ld+json">\n  {\n    "@context": "https://schema.org",\n    "@type": "ItemList",\n    "name": "深圳宝安南山写字楼出租精选",\n    "description": "深圳宝安南山区优质写字楼办公室租赁房源列表",\n    "numberOfItems": ' + properties.length + ',\n    "itemListElement": []\n  }\n  <\/script>\n  <style>\n    * { margin:0; padding:0; box-sizing:border-box; }\n    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background:#f5f6fa; color:#1a1a2e; -webkit-font-smoothing:antialiased; }\n    .hero { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color:#fff; padding:60px 24px 50px; text-align:center; position:relative; overflow:hidden; }\n    .hero::before { content:\'\'; position:absolute; top:-50%; right:-30%; width:600px; height:600px; background:radial-gradient(circle, rgba(79,110,247,.15) 0%, transparent 70%); }\n    .hero h1 { font-size:36px; font-weight:800; letter-spacing:2px; margin-bottom:12px; position:relative; }\n    .hero h1 span { color:#4f6ef7; }\n    .hero .subtitle { font-size:16px; opacity:.85; margin-bottom:24px; position:relative; }\n    .hero .contact-bar { display:inline-flex; gap:20px; background:rgba(255,255,255,.1); border-radius:40px; padding:12px 28px; font-size:14px; position:relative; backdrop-filter:blur(4px); }\n    .hero .contact-bar a { color:#fff; text-decoration:none; }\n    .hero .contact-bar .label { opacity:.7; margin-right:4px; }\n    .hero .contact-bar .val { font-weight:700; }\n    .filter-bar { background:#fff; border-bottom:1px solid #e8ecf1; padding:16px 24px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.04); }\n    .filter-inner { max-width:1200px; margin:0 auto; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }\n    .filter-group { display:flex; gap:6px; flex-wrap:wrap; }\n    .filter-btn { background:#f5f6fa; border:1px solid transparent; border-radius:20px; padding:6px 14px; font-size:13px; cursor:pointer; font-family:inherit; color:#7f8c9b; -webkit-tap-highlight-color:transparent; transition:all .15s; }\n    .filter-btn:hover { background:#eef0ff; color:#4f6ef7; }\n    .filter-btn.active { background:#4f6ef7; color:#fff; border-color:#4f6ef7; }\n    .filter-search { margin-left:auto; border:1.5px solid #e8ecf1; border-radius:20px; padding:8px 16px; font-size:13px; font-family:inherit; outline:none; width:180px; color:#1a1a2e; }\n    .filter-search:focus { border-color:#4f6ef7; }\n    .filter-search::placeholder { color:#b0b8c4; }\n    .main { max-width:1200px; margin:0 auto; padding:24px; }\n    .result-info { font-size:13px; color:#7f8c9b; margin-bottom:16px; }\n    .result-info strong { color:#1a1a2e; }\n    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }\n    .card { background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.05); transition:transform .2s, box-shadow .2s; cursor:pointer; position:relative; }\n    .card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,.1); }\n    .card-img { height:180px; background:linear-gradient(135deg,#e8ecf1,#d5dae3); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }\n    .card-img img { width:100%; height:100%; object-fit:cover; }\n    .card-img .area-badge { position:absolute; top:12px; left:12px; background:rgba(79,110,247,.85); color:#fff; font-size:11px; padding:3px 10px; border-radius:4px; font-weight:600; backdrop-filter:blur(4px); }\n    .card-body { padding:16px 18px 18px; }\n    .card-body h3 { font-size:17px; font-weight:700; margin-bottom:8px; line-height:1.3; }\n    .card-body .rent { font-size:24px; font-weight:800; color:#f56c6c; margin-bottom:4px; }\n    .card-body .rent small { font-size:12px; font-weight:400; color:#7f8c9b; }\n    .card-body .rent-note { font-size:11px; color:#b0b8c4; margin-bottom:10px; }\n    .card-body .info-row { font-size:13px; color:#7f8c9b; margin-bottom:4px; display:flex; gap:4px; }\n    .card-body .info-row .lbl { color:#b0b8c4; flex-shrink:0; }\n    .card-body .tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }\n    .card-body .tag { font-size:11px; padding:3px 8px; border-radius:4px; background:#f5f6fa; color:#7f8c9b; font-weight:500; }\n    .card-body .tag.tag-hot { background:#fef0f0; color:#f56c6c; }\n    .card-body .tag.tag-metro { background:#eef0ff; color:#4f6ef7; }\n    .card-body .tag.tag-new { background:#f0f9eb; color:#67c23a; }\n    .card-body .tag.tag-policy { background:#fdf6ec; color:#e6a23c; }\n    .pagination { display:flex; justify-content:center; gap:8px; margin:32px 0; }\n    .page-btn { border:1.5px solid #e8ecf1; border-radius:8px; padding:8px 16px; font-size:14px; cursor:pointer; font-family:inherit; background:#fff; color:#7f8c9b; -webkit-tap-highlight-color:transparent; }\n    .page-btn:hover { border-color:#4f6ef7; color:#4f6ef7; }\n    .page-btn.active { background:#4f6ef7; color:#fff; border-color:#4f6ef7; }\n    .page-btn:disabled { opacity:.4; pointer-events:none; }\n    .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:1000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .2s; }\n    .modal-overlay.show { opacity:1; pointer-events:auto; }\n    .modal-box { background:#fff; border-radius:16px; width:90%; max-width:520px; max-height:85vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); position:relative; }\n    .modal-hero { height:200px; background:linear-gradient(135deg,#1a1a2e,#0f3460); display:flex; align-items:center; justify-content:center; overflow:hidden; }\n    .modal-hero img { width:100%; height:100%; object-fit:cover; }\n    .modal-close { position:absolute; top:12px; right:12px; background:rgba(0,0,0,.4); color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-size:18px; cursor:pointer; z-index:10; }\n    .modal-content { padding:24px; }\n    .modal-content .rent-big { font-size:32px; font-weight:800; color:#f56c6c; margin-bottom:4px; }\n    .modal-content .rent-big small { font-size:14px; font-weight:400; color:#7f8c9b; }\n    .modal-content .rent-note { font-size:12px; color:#b0b8c4; margin-bottom:16px; }\n    .modal-content .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:16px 0; }\n    .modal-content .info-cell { background:#f5f6fa; border-radius:8px; padding:12px; }\n    .modal-content .info-cell .lbl { font-size:11px; color:#b0b8c4; margin-bottom:2px; }\n    .modal-content .info-cell .val { font-size:15px; font-weight:600; }\n    .modal-content .highlights { margin:16px 0; }\n    .modal-content .highlights h4 { font-size:14px; margin-bottom:8px; }\n    .modal-content .highlights li { font-size:13px; color:#7f8c9b; margin-bottom:4px; line-height:1.5; }\n    .modal-content .contact-box { background:linear-gradient(135deg,#4f6ef7,#6c5ce7); border-radius:12px; padding:20px; text-align:center; color:#fff; margin-top:16px; }\n    .modal-content .contact-box .phone { font-size:24px; font-weight:800; margin:8px 0; }\n    .modal-content .contact-box .wechat { font-size:13px; opacity:.85; }\n    .seo-footer { background:#1a1a2e; color:rgba(255,255,255,.6); padding:40px 24px; margin-top:40px; }\n    .seo-inner { max-width:800px; margin:0 auto; }\n    .seo-inner h4 { color:#fff; font-size:15px; margin-bottom:12px; }\n    .seo-inner p { font-size:13px; line-height:1.8; margin-bottom:16px; }\n    .seo-inner .footer-contact { font-size:14px; color:#4f6ef7; font-weight:600; }\n    @media (max-width:900px) { .grid { grid-template-columns:repeat(2,1fr); } }\n    @media (max-width:600px) { .grid { grid-template-columns:1fr; } .hero h1 { font-size:24px; } .hero .contact-bar { flex-direction:column; gap:8px; } .filter-inner { flex-direction:column; align-items:stretch; } .filter-search { margin-left:0; width:100%; } .modal-content .info-grid { grid-template-columns:1fr; } }\n  </style>\n</head>\n<body>\n<div class="hero">\n  <h1>深圳<span>宝安·南山</span><br>写字楼真实房源</h1>\n  <div class="subtitle">真实楼盘 · 免费带看 · 一对一服务</div>\n  <div class="contact-bar">\n    <a href="tel:"><span class="label">电话</span><span class="val">咨询热线</span></a>\n    <a href="javascript:void(0)"><span class="label">微信</span><span class="val">扫码咨询</span></a>\n  </div>\n</div>\n<div class="filter-bar">\n  <div class="filter-inner">\n    <div class="filter-group" id="areaFilter">\n      <button class="filter-btn active" data-val="all">全部区域</button>\n      <button class="filter-btn" data-val="qianhai">前海</button>\n      <button class="filter-btn" data-val="baoan-center">宝安中心</button>\n      <button class="filter-btn" data-val="xixiang">西乡</button>\n      <button class="filter-btn" data-val="nanshan-tech">南山科技园</button>\n    </div>\n    <input type="text" class="filter-search" id="searchInput" placeholder="搜索楼盘名称...">\n  </div>\n</div>\n<div class="main">\n  <div class="result-info" id="resultInfo">共 <strong>0</strong> 个房源</div>\n  <div class="grid" id="cardGrid"></div>\n  <div class="pagination" id="pagination"></div>\n</div>\n<div class="seo-footer">\n  <div class="seo-inner">\n    <h4>深圳宝安南山写字楼租赁服务</h4>\n    <p>我们专注深圳宝安区、南山区写字楼办公室租赁，覆盖前海、宝安中心、西乡、南山科技园等核心商务板块。真实房源，实地拍摄，无论您是初创企业还是成熟公司，我们都能为您匹配最合适的办公空间。</p>\n    <p>专业经纪人一对一服务，从选址到签约全程跟进，让您省心省力找到理想办公室。</p>\n    <p class="footer-contact">联系电话 / 微信咨询，欢迎随时联系看房</p>\n  </div>\n</div>\n<div class="modal-overlay" id="detailModal">\n  <div class="modal-box">\n    <button class="modal-close" onclick="closeDetail()">&times;</button>\n    <div class="modal-hero" id="modalHero"></div>\n    <div class="modal-content" id="modalContent"></div>\n  </div>\n</div>\n<script>\nvar properties = ' + propsCode + ';\nvar PAGE_SIZE = 12;\nvar currentPage = 1;\nvar filterArea = "all";\nvar searchText = "";\nfunction getFiltered() { var list = []; for (var i = 0; i < properties.length; i++) { var p = properties[i]; if (filterArea !== "all" && p.area !== filterArea) continue; if (searchText && p.name.indexOf(searchText) < 0 && p.address.indexOf(searchText) < 0) continue; list.push(p); } return list; }\nfunction getTagClass(t) { if (t === "近地铁" || t === "地铁上盖") return "tag tag-metro"; if (t === "大面积" || t === "可分割") return "tag tag-hot"; if (t === "政府补贴" || t === "前海政策" || t === "金融专属") return "tag tag-policy"; if (t === "品牌开发商" || t === "品牌物业") return "tag tag-new"; return "tag"; }\nfunction renderList() { var filtered = getFiltered(); var total = filtered.length; var totalPages = Math.ceil(total / PAGE_SIZE) || 1; if (currentPage > totalPages) currentPage = totalPages; var start = (currentPage - 1) * PAGE_SIZE; var pageData = filtered.slice(start, start + PAGE_SIZE); document.getElementById("resultInfo").innerHTML = "共 <strong>" + total + "</strong> 个房源"; var areaLabels = { "qianhai":"前海","baoan-center":"宝安中心","xixiang":"西乡","nanshan-tech":"南山科技园" }; var html = ""; for (var i = 0; i < pageData.length; i++) { var p = pageData[i]; var areaLabel = areaLabels[p.area] || ""; var tagHtml = ""; for (var j = 0; j < p.tags.length && j < 4; j++) { tagHtml += "<span class=\\"" + getTagClass(p.tags[j]) + "\\">" + p.tags[j] + "</span>"; } var rentDisplay = p.rent === "面议" ? "面议" : p.rent + "<small> 元/㎡/月</small>"; html += "<div class=\\"card\\" onclick=\\"showDetail(" + i + ")\\"><div class=\\"card-img\\"><img src=\\"" + p.img + "\\" alt=\\"" + p.name + "\\" onerror=\\"this.style.display=\\'none\\'\\"><div class=\\"area-badge\\">" + areaLabel + "</div></div><div class=\\"card-body\\"><h3>" + p.name + "</h3><div class=\\"rent\\">" + rentDisplay + "</div><div class=\\"rent-note\\">" + p.rentNote + "</div><div class=\\"info-row\\"><span class=\\"lbl\\">面积</span><span>" + p.sizeRange + "㎡</span></div><div class=\\"info-row\\"><span class=\\"lbl\\">地铁</span><span>" + p.metro + "</span></div><div class=\\"tags\\">" + tagHtml + "</div></div></div>"; } document.getElementById("cardGrid").innerHTML = html; var pagHtml = ""; pagHtml += "<button class=\\"page-btn\\" onclick=\\"goPage(" + (currentPage-1) + ")\\"" + (currentPage<=1?" disabled":"") + ">上一页</button>"; for (var i = 1; i <= totalPages; i++) { pagHtml += "<button class=\\"page-btn" + (i===currentPage?" active":"") + "\\" onclick=\\"goPage(" + i + ")\\">" + i + "</button>"; } pagHtml += "<button class=\\"page-btn\\" onclick=\\"goPage(" + (currentPage+1) + ")\\"" + (currentPage>=totalPages?" disabled":"") + ">下一页</button>"; document.getElementById("pagination").innerHTML = pagHtml; }\nfunction goPage(n) { currentPage = n; renderList(); window.scrollTo({ top: 200, behavior: "smooth" }); }\nfunction showDetail(idx) { var filtered = getFiltered(); var start = (currentPage - 1) * PAGE_SIZE; var p = filtered[start + idx]; if (!p) return; var areaLabels = { "qianhai":"前海","baoan-center":"宝安中心","xixiang":"西乡","nanshan-tech":"南山科技园" }; var areaLabel = areaLabels[p.area] || ""; var hlHtml = ""; for (var i = 0; i < p.highlights.length; i++) { hlHtml += "<li>" + p.highlights[i] + "</li>"; } var tagHtml = ""; for (var i = 0; i < p.tags.length; i++) { tagHtml += "<span class=\\"" + getTagClass(p.tags[i]) + "\\" style=\\"margin-right:6px;\\">" + p.tags[i] + "</span>"; } var rentDisplay = p.rent === "面议" ? "面议" : p.rent + "<small> 元/㎡/月</small>"; document.getElementById("modalHero").innerHTML = "<img src=\\"" + p.img + "\\" alt=\\"" + p.name + "\\" onerror=\\"this.parentElement.innerHTML=\\'<h2>" + p.name + "</h2>\\'\\">"; document.getElementById("modalContent").innerHTML = "<h2 style=\\"font-size:20px;font-weight:700;margin-bottom:12px;\\">" + p.name + "</h2><div class=\\"rent-big\\">" + rentDisplay + "</div><div class=\\"rent-note\\">" + p.rentNote + "</div><div style=\\"margin-bottom:12px;\\">" + tagHtml + "</div><div class=\\"info-grid\\"><div class=\\"info-cell\\"><div class=\\"lbl\\">区域</div><div class=\\"val\\">" + areaLabel + "</div></div><div class=\\"info-cell\\"><div class=\\"lbl\\">可租面积</div><div class=\\"val\\">" + p.sizeRange + "㎡</div></div><div class=\\"info-cell\\"><div class=\\"lbl\\">地址</div><div class=\\"val\\" style=\\"font-size:13px;\\">" + p.address + "</div></div><div class=\\"info-cell\\"><div class=\\"lbl\\">最近地铁</div><div class=\\"val\\" style=\\"font-size:13px;\\">" + p.metro + "</div></div><div class=\\"info-cell\\"><div class=\\"lbl\\">开发商</div><div class=\\"val\\" style=\\"font-size:13px;\\">" + p.developer + "</div></div><div class=\\"info-cell\\"><div class=\\"lbl\\">物业公司</div><div class=\\"val\\" style=\\"font-size:13px;\\">" + p.property + "</div></div><div class=\\"info-cell\\"><div class=\\"lbl\\">楼层数</div><div class=\\"val\\">" + p.floors + "</div></div></div><div class=\\"highlights\\"><h4>楼盘亮点</h4><ul>" + hlHtml + "</ul></div><div class=\\"contact-box\\"><div>专业经纪人 · 一对一服务</div><div class=\\"phone\\">" + p.contact + "</div><div class=\\"wechat\\">微信同号，随时预约看房</div></div>"; document.getElementById("detailModal").classList.add("show"); }\nfunction closeDetail() { document.getElementById("detailModal").classList.remove("show"); }\ndocument.getElementById("detailModal").addEventListener("click", function(e) { if (e.target === this) closeDetail(); });\nfunction bindFilter(containerId, callback) { var btns = document.getElementById(containerId).querySelectorAll(".filter-btn"); for (var i = 0; i < btns.length; i++) { btns[i].addEventListener("click", function() { var siblings = this.parentElement.querySelectorAll(".filter-btn"); for (var j = 0; j < siblings.length; j++) siblings[j].classList.remove("active"); this.classList.add("active"); callback(this.getAttribute("data-val")); }); } }\nbindFilter("areaFilter", function(v) { filterArea = v; currentPage = 1; renderList(); });\ndocument.getElementById("searchInput").addEventListener("input", function() { searchText = this.value.trim(); currentPage = 1; renderList(); });\nfunction updateJsonLd() { var items = []; for (var i = 0; i < properties.length; i++) { var p = properties[i]; var priceNum = 0; if (p.rent !== "面议") { var match = p.rent.match(/(\\d+)/); if (match) priceNum = parseInt(match[1]); } var item = { "@type":"ListItem", "position":i+1, "item":{ "@type":"RealEstateListing", "name":p.name, "description":p.name+"，位于"+p.address+"，"+p.metro+(p.rent!=="面议"?"，租金"+p.rent+"元/㎡/月":"，租金面议")+"，"+p.sizeRange+"㎡可租", "url":"https://lverlyly.github.io/work-tracker/office.html", "image":"https://lverlyly.github.io/work-tracker/"+p.img, "address":{ "@type":"PostalAddress", "addressLocality":"深圳", "addressRegion":"广东", "streetAddress":p.address } }; if (priceNum > 0) item.item.priceSpecification = { "@type":"UnitPriceSpecification", "price":priceNum, "priceCurrency":"CNY", "unitCode":"MTK", "description":"元/㎡/月" }; items.push(item); } var jsonLd = { "@context":"https://schema.org", "@type":"ItemList", "name":"深圳宝安南山写字楼出租精选", "description":"深圳宝安南山区优质写字楼办公室租赁房源列表", "numberOfItems":properties.length, "itemListElement":items }; var script = document.querySelector("script[type=\\"application/ld+json\\"]"); if (script) script.textContent = JSON.stringify(jsonLd); }\nupdateJsonLd();\nrenderList();\n<\/script>\n</body>\n</html>';
+}
+
+// ========== Toast ==========
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(function() { t.className = 'toast'; }, 2500);
+}
+
+// ========== 初始化 ==========
+// 如果localStorage中没有数据，写入默认数据
+if (!localStorage.getItem(STORAGE_KEY)) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultProperties));
+}
+</script>
+</body>
+</html>
