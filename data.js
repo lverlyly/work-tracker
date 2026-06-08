@@ -6,7 +6,7 @@ var siteConfig = {
   footerDesc: '我们专注深圳宝安区、南山区写字楼办公室租赁，覆盖前海、宝安中心、西乡、南山科技园等核心商务板块。真实房源，实地拍摄，无论您是初创企业还是成熟公司，我们都能为您匹配最合适的办公空间。',
   footerDesc2: '专业经纪人一对一服务，从选址到签约全程跟进，让您省心省力找到理想办公室。',
   phone: '15914050727',
-  wechatQrImg: 'images/wechat_qr.jpg',
+  wechatQrImg: '',
   areas: [
     {key: 'qianhai', label: '前海', hot: true},
     {key: 'baoan-center', label: '宝安中心', hot: true},
