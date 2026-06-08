@@ -11,7 +11,8 @@ var siteConfig = {
     {key: 'qianhai', label: '前海', hot: true},
     {key: 'baoan-center', label: '宝安中心', hot: true},
     {key: 'xixiang', label: '西乡', hot: true},
-    {key: 'nanshan-tech', label: '南山科技园', hot: true}
+    {key: 'nanshan-tech', label: '南山科技园', hot: true},
+    {key: 'fuyong', label: '福永', hot: false}
   ]
 };
 
